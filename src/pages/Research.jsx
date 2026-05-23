@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
 import { motion } from 'framer-motion';
 
-// Fallback campaign data from the Wix site (used if CMS query fails/empty)
+// Fallback campaign data
 const FALLBACK_CAMPAIGNS = [
   {
     id: '1', name: 'Feline Spacesuit Engineering',
@@ -59,11 +59,36 @@ function CampaignCard({ campaign }) {
   const [selected, setSelected] = useState(null);
   const [custom, setCustom] = useState('');
   const [freq, setFreq] = useState('one-time');
+  const [processing, setProcessing] = useState(false);
 
   const pct = campaign.goal > 0 ? Math.min(100, (campaign.raised / campaign.goal) * 100) : 0;
 
-  const handleDonate = () => {
-    alert(`Thank you for your interest in supporting ${campaign.name}! Donations are processed through our Wix store.`);
+  const handleDonate = async () => {
+    const amount = selected === 'other' ? parseFloat(custom) : selected;
+    if (!amount || amount <= 0) {
+      alert('Please select or enter a valid donation amount');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const res = await base44.functions.invoke('createWixDonationCheckout', {
+        campaignName: campaign.name,
+        amount,
+        frequency: freq,
+      });
+      
+      if (res.data.checkoutUrl) {
+        window.location.href = res.data.checkoutUrl;
+      } else {
+        alert('Failed to create checkout. Please try again.');
+      }
+    } catch (err) {
+      console.error('Donation error:', err);
+      alert('Failed to process donation. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -89,6 +114,7 @@ function CampaignCard({ campaign }) {
         <div className="grid grid-cols-2 gap-2 mb-3">
           {campaign.amounts.map(a => (
             <button key={a.value} onClick={() => { setSelected(a.value); setCustom(''); }}
+              disabled={processing}
               className={`text-left px-3 py-2 border text-xs transition-colors ${selected === a.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-foreground hover:border-primary/50'}`}>
               <span className="font-mono font-bold">{campaign.currency}{a.value}</span>
               <br /><span className="text-muted-foreground">{a.label}</span>
@@ -96,11 +122,13 @@ function CampaignCard({ campaign }) {
           ))}
         </div>
         <button onClick={() => { setSelected('other'); }}
+          disabled={processing}
           className={`w-full py-2 text-xs font-mono border transition-colors mb-4 ${selected === 'other' ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
           OTHER
         </button>
         {selected === 'other' && (
           <input type="number" placeholder="Enter amount..." value={custom} onChange={e => setCustom(e.target.value)}
+            disabled={processing}
             className="w-full bg-background border border-border px-3 py-2 text-sm font-mono mb-4 focus:outline-none focus:border-primary" />
         )}
 
@@ -109,15 +137,16 @@ function CampaignCard({ campaign }) {
         <div className="flex gap-2 mb-6">
           {['one-time', 'monthly', 'yearly'].map(f => (
             <button key={f} onClick={() => setFreq(f)}
+              disabled={processing}
               className={`text-xs font-mono px-3 py-1.5 border transition-colors capitalize ${freq === f ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
               {f}
             </button>
           ))}
         </div>
 
-        <button onClick={handleDonate}
-          className="w-full py-3 bg-primary text-primary-foreground font-display text-lg tracking-widest uppercase hover:bg-primary/80 transition-colors">
-          Donate
+        <button onClick={handleDonate} disabled={processing}
+          className={`w-full py-3 bg-primary text-primary-foreground font-display text-lg tracking-widest uppercase transition-colors ${processing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/80'}`}>
+          {processing ? 'Processing...' : 'Donate'}
         </button>
       </div>
     </div>

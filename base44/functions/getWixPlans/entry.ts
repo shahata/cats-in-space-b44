@@ -1,3 +1,5 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+
 async function safeJson(res) {
   const text = await res.text();
   try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
@@ -14,44 +16,34 @@ async function getAnonToken(clientId) {
   return data.access_token;
 }
 
-function transformPlan(plan) {
-  const pricing = plan.pricing;
-  let priceDisplay = 'Free';
-  let period = null;
-  let isFree = true;
-
-  if (pricing?.singlePaymentForDuration) {
-    const p = pricing.singlePaymentForDuration;
-    priceDisplay = `${p.price?.currency || ''} ${p.price?.value || '0'}`;
-    isFree = false;
-  } else if (pricing?.subscription) {
-    const s = pricing.subscription;
-    const price = s.cycleDuration?.price;
-    const cycle = s.cycleDuration?.count;
-    const unit = s.cycleDuration?.unit;
-    if (price) {
-      priceDisplay = `${price.currency || ''} ${price.value || '0'}`;
-      isFree = false;
-    }
-    if (unit) period = unit.toLowerCase();
-  } else if (pricing?.free) {
-    priceDisplay = 'Free';
-    isFree = true;
-  }
-
+function processPlan(plan) {
+  if (!plan) return null;
+  
+  // Get primary price
+  const primaryPrice = plan.price?.value || plan.price?.amount || 0;
+  const currency = plan.currency || 'USD';
+  
+  // Format price display
+  const priceDisplay = primaryPrice === 0 ? 'Free' : `${currency}${primaryPrice}`;
+  
+  // Get perks/benefits
+  const perks = (plan.benefits || plan.perks || []).map(b => ({
+    label: b.name || b.description || 'Benefit',
+    value: b.description || b.name || '',
+  }));
+  
   return {
-    id: plan.id,
+    id: plan._id || plan.id,
     name: plan.name,
     description: plan.description,
     priceDisplay,
-    period,
-    isFree,
-    highlighted: plan.primary || false,
-    perks: (plan.perks?.values || []).map(p => p.value || p),
-    maxPurchasesPerBuyer: plan.maxPurchasesPerBuyer,
-    hasFreeTrial: !!plan.freeTrialDays,
-    freeTrialDays: plan.freeTrialDays,
-    slug: plan.slug,
+    price: primaryPrice,
+    currency,
+    period: plan.frequency?.unit || plan.pricingSchema?.frequency?.unit || 'month',
+    hasFreeTrial: !!plan.trialPeriod?.duration,
+    freeTrialDays: plan.trialPeriod?.duration || 0,
+    perks,
+    highlighted: false,
   };
 }
 
@@ -65,22 +57,36 @@ Deno.serve(async (req) => {
     const headers = {
       'Authorization': `Bearer ${accessToken}`,
       'wix-site-id': instanceId,
+      'Content-Type': 'application/json',
     };
 
-    const res = await fetch('https://www.wixapis.com/pricing-plans/v2/plans?fieldsets=FULL&archived=false', { headers });
-    const data = await safeJson(res);
+    // Try different Wix endpoints for pricing plans
+    const endpoints = [
+      `https://www.wixapis.com/pricing-plans/v1/plans`,
+      `https://www.wixapis.com/v1/plans`,
+      `https://www.wixapis.com/site-memberships/v1/plans`,
+    ];
 
-    if (!res.ok) {
-      console.error('[getWixPlans] Error:', JSON.stringify(data));
-      return Response.json({ plans: [] });
+    let plans = [];
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint, { method: 'GET', headers });
+        const data = await safeJson(res);
+        
+        if (res.ok && data.plans) {
+          plans = data.plans.map(processPlan);
+          break;
+        }
+      } catch (err) {
+        console.log(`Tried ${endpoint}, failed:`, err.message);
+      }
     }
 
-    const plans = (data.plans || []).map(transformPlan);
-    // Sort: free first, then by price ascending, but highlighted in middle
+    // If no plans from API, return empty array (fallback to static data in frontend)
     return Response.json({ plans });
 
   } catch (err) {
     console.error('[getWixPlans] Exception:', err.message);
-    return Response.json({ plans: [], error: err.message }, { status: 500 });
+    return Response.json({ error: err.message, plans: [] }, { status: 500 });
   }
 });

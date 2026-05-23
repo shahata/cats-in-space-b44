@@ -24,6 +24,9 @@ import BlogPost from './pages/BlogPost';
 import Plans from './pages/Plans';
 import Explore from './pages/Explore';
 import Research from './pages/Research';
+import MedicalBay from './pages/MedicalBay';
+import Restaurant from './pages/Restaurant';
+import Cinema from './pages/Cinema';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
@@ -71,6 +74,9 @@ const AuthenticatedApp = () => {
       <Route path="/plans" element={<Plans />} />
       <Route path="/explore" element={<Explore />} />
       <Route path="/research" element={<Research />} />
+      <Route path="/medical-bay" element={<MedicalBay />} />
+      <Route path="/restaurant" element={<Restaurant />} />
+      <Route path="/cinema" element={<Cinema />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
