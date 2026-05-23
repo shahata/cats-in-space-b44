@@ -2,8 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { motion } from 'framer-motion';
 import { ArrowLeft, MapPin, Plus, Minus, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 
 const formatShowtime = (iso) => {
   if (!iso) return '';
@@ -22,6 +26,8 @@ export default function CinemaMovie() {
   const [allEvents, setAllEvents] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [selectedShowtimeId, setSelectedShowtimeId] = useState('');
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [dateOpen, setDateOpen] = useState(false);
   const [quantities, setQuantities] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadingTickets, setLoadingTickets] = useState(false);
@@ -38,6 +44,13 @@ export default function CinemaMovie() {
     () => allEvents.filter(e => (e.slug || e.id) === slug || e.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug),
     [allEvents, slug]
   );
+
+  // Filter showtimes by selected date
+  const filteredShowtimes = useMemo(() => {
+    if (!selectedDate) return showtimes;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return showtimes.filter(s => s.startDate === dateStr);
+  }, [showtimes, selectedDate]);
 
   const movie = showtimes[0];
 
@@ -140,19 +153,52 @@ export default function CinemaMovie() {
         <div className="border-t border-border pt-10">
           <h2 className="font-display text-2xl md:text-3xl tracking-widest text-primary uppercase mb-6">Buy Tickets</h2>
 
-          <div className="bg-card border border-border p-5 mb-6">
-            <label className="text-xs font-mono tracking-widest uppercase text-muted-foreground mb-2 flex items-center gap-2">
-              <Calendar className="w-3 h-3" /> Select a Showtime
-            </label>
-            <select
-              value={selectedShowtimeId}
-              onChange={(e) => { setSelectedShowtimeId(e.target.value); setQuantities({}); }}
-              className="w-full bg-background border border-border px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-primary"
-            >
-              {showtimes.map(s => (
-                <option key={s.id} value={s.id}>{formatShowtime(s.startDateISO)}</option>
-              ))}
-            </select>
+          <div className="bg-card border border-border p-5 mb-6 space-y-4">
+            <div>
+              <label className="text-xs font-mono tracking-widest uppercase text-muted-foreground mb-2 flex items-center gap-2">
+                <Calendar className="w-3 h-3" /> Select Date
+              </label>
+              <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-body">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date);
+                      setDateOpen(false);
+                      setSelectedShowtimeId('');
+                      setQuantities({});
+                    }}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {selectedDate && (
+              <div>
+                <label className="text-xs font-mono tracking-widest uppercase text-muted-foreground mb-2 block">
+                  Select Showtime
+                </label>
+                <select
+                  value={selectedShowtimeId}
+                  onChange={(e) => { setSelectedShowtimeId(e.target.value); setQuantities({}); }}
+                  className="w-full bg-background border border-border px-3 py-2.5 text-sm font-mono focus:outline-none focus:border-primary"
+                >
+                  <option value="">Pick a time</option>
+                  {filteredShowtimes.map(s => (
+                    <option key={s.id} value={s.id}>{formatShowtime(s.startDateISO)}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Tickets */}
