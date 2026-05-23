@@ -96,7 +96,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    const checkoutUrl = checkoutData.checkoutUrl || checkoutData.redirectUrl;
+    const checkoutId = checkoutData.checkoutId || checkoutData.checkout?.id;
+    let checkoutUrl = checkoutData.checkoutUrl || checkoutData.redirectUrl;
+
+    // Hand off to Wix's hosted checkout via the Create Redirect Session API.
+    if (checkoutId) {
+      try {
+        const sessionRes = await fetch('https://www.wixapis.com/_api/redirects-api/v1/redirect-session', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'wix-site-id': instanceId,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            redirectSession: {
+              ecomCheckout: { checkoutId },
+              callbacks: { postFlowUrl: req.headers.get('referer') || '' },
+            },
+          }),
+        });
+        const sessionData = await safeJson(sessionRes);
+        if (sessionRes.ok && sessionData.redirectSession?.fullUrl) {
+          checkoutUrl = sessionData.redirectSession.fullUrl;
+        } else {
+          console.error('[createWixDonationCheckout] Redirect session failed:', JSON.stringify(sessionData));
+        }
+      } catch (e) {
+        console.error('[createWixDonationCheckout] Redirect session error:', e.message);
+      }
+    }
 
     return Response.json({ checkoutUrl, cartId, visitorToken });
 

@@ -93,13 +93,39 @@ Deno.serve(async (req) => {
       }
       
       const resData = data.reservation;
+      const reservationId = resData._id;
+
+      // Hand off to Wix's hosted reservation confirmation via the Create Redirect Session API.
+      let redirectUrl = null;
+      try {
+        const sessionRes = await fetch('https://www.wixapis.com/_api/redirects-api/v1/redirect-session', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            redirectSession: {
+              tableReservationsCheckout: { reservationId },
+              callbacks: { postFlowUrl: req.headers.get('referer') || '' },
+            },
+          }),
+        });
+        const sessionData = await safeJson(sessionRes);
+        if (sessionRes.ok && sessionData.redirectSession?.fullUrl) {
+          redirectUrl = sessionData.redirectSession.fullUrl;
+        } else {
+          console.error('[getWixReservations] Redirect session failed:', JSON.stringify(sessionData));
+        }
+      } catch (e) {
+        console.error('[getWixReservations] Redirect session error:', e.message);
+      }
+
       return Response.json({ 
         reservation: {
-          id: resData._id,
+          id: reservationId,
           status: resData.status,
           startDate: resData.details?.startDate,
           partySize: resData.details?.partySize,
-        }
+        },
+        redirectUrl,
       });
     }
 

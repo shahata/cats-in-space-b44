@@ -84,9 +84,38 @@ Deno.serve(async (req) => {
       return Response.json({ error: checkoutData }, { status: checkoutResponse.status });
     }
 
+    const checkoutId = checkoutData.checkout?.id;
+
+    // Hand off to Wix's hosted checkout via the Create Redirect Session API.
+    let checkoutUrl = checkoutData.checkout?.checkoutUrl;
+    try {
+      const sessionRes = await fetch('https://www.wixapis.com/_api/redirects-api/v1/redirect-session', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'wix-site-id': instanceId,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          redirectSession: {
+            ecomCheckout: { checkoutId },
+            callbacks: { postFlowUrl: req.headers.get('referer') || '' },
+          },
+        }),
+      });
+      const sessionData = await sessionRes.json().catch(() => ({}));
+      if (sessionRes.ok && sessionData.redirectSession?.fullUrl) {
+        checkoutUrl = sessionData.redirectSession.fullUrl;
+      } else {
+        console.error('[createWixCheckout] Redirect session failed:', JSON.stringify(sessionData));
+      }
+    } catch (e) {
+      console.error('[createWixCheckout] Redirect session error:', e.message);
+    }
+
     return Response.json({
-      checkoutId: checkoutData.checkout?.id,
-      checkoutUrl: checkoutData.checkout?.checkoutUrl,
+      checkoutId,
+      checkoutUrl,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

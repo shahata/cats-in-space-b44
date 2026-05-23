@@ -92,7 +92,34 @@ Deno.serve(async (req) => {
       return Response.json({ checkoutUrl: fallbackUrl });
     }
 
-    const checkoutUrl = checkoutData.checkout?.url || checkoutData.redirectSession?.fullUrl;
+    const checkoutId = checkoutData.checkout?.id || checkoutData.checkoutId;
+    let checkoutUrl = checkoutData.checkout?.url || checkoutData.redirectSession?.fullUrl;
+
+    // Hand off to Wix's hosted checkout via the Create Redirect Session API.
+    if (checkoutId) {
+      try {
+        const sessionRes = await fetch('https://www.wixapis.com/_api/redirects-api/v1/redirect-session', {
+          method: 'POST',
+          headers: {
+            ...headers,
+          },
+          body: JSON.stringify({
+            redirectSession: {
+              ecomCheckout: { checkoutId },
+              callbacks: { postFlowUrl: req.headers.get('referer') || '' },
+            },
+          }),
+        });
+        const sessionData = await safeJson(sessionRes);
+        if (sessionRes.ok && sessionData.redirectSession?.fullUrl) {
+          checkoutUrl = sessionData.redirectSession.fullUrl;
+        } else {
+          console.error('[createRestaurantOrder] Redirect session failed:', JSON.stringify(sessionData));
+        }
+      } catch (e) {
+        console.error('[createRestaurantOrder] Redirect session error:', e.message);
+      }
+    }
 
     return Response.json({ checkoutUrl, cartId });
 

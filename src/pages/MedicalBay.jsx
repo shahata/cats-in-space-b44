@@ -68,11 +68,25 @@ export default function MedicalBay() {
     if (!selectedService || !selectedDate || !selectedTime) return;
     setBooking(true);
     try {
-      const res = await base44.functions.invoke('getWixConfig', {});
-      const siteId = res.data.siteId;
-      // Redirect to Wix bookings - use proper URL format
-      const bookingUrl = `https://www.wix.com/bookings?siteId=${siteId}&serviceId=${selectedService.id}&date=${selectedDate}&time=${selectedTime}`;
-      window.location.href = bookingUrl;
+      const slot = slots.find(s => s.startTime === selectedTime);
+      const res = await base44.functions.invoke('createWixRedirectSession', {
+        flowType: 'bookingsCheckout',
+        params: {
+          slotAvailability: {
+            slot: slot?.slotData || slot || {
+              serviceId: selectedService.id,
+              startDate: `${selectedDate}T${selectedTime}`,
+            },
+            bookable: true,
+          },
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+      });
+      if (res.data?.redirectUrl) {
+        window.location.href = res.data.redirectUrl;
+      } else {
+        console.error('Booking redirect failed:', res.data);
+      }
     } catch (err) {
       console.error('Booking error:', err);
     }

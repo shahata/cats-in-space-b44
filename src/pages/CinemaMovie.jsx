@@ -80,13 +80,21 @@ export default function CinemaMovie() {
   const totalPrice = tickets.reduce((s, t) => s + (quantities[t.id] || 0) * t.price, 0);
   const currency = tickets[0]?.currency || movie?.currency || 'USD';
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!selectedShowtimeId || totalQty === 0) return;
-    // Redirect to Wix-hosted checkout for the event
-    base44.functions.invoke('getWixConfig', {}).then(res => {
-      const siteUrl = res.data?.siteUrl || `https://manage.wix.com`;
-      window.open(`${siteUrl}/cinema/${slug}`, '_blank');
-    });
+    const showtime = filteredShowtimes.find(s => s.id === selectedShowtimeId) || showtimes[0];
+    try {
+      const res = await base44.functions.invoke('createWixRedirectSession', {
+        flowType: 'eventsCheckout',
+        params: {
+          eventSlug: showtime?.slug || slug,
+          eventId: selectedShowtimeId,
+        },
+      });
+      if (res.data?.redirectUrl) {
+        window.location.href = res.data.redirectUrl;
+      }
+    } catch (e) { console.error(e); }
   };
 
   if (loading) {
