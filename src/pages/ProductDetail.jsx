@@ -122,7 +122,14 @@ export default function ProductDetail() {
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="flex flex-col">
             <p className="text-muted-foreground text-xs tracking-widest uppercase font-mono mb-3">Folio Ceramics</p>
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-tight mb-4">{product.name}</h1>
-            <p className="font-mono text-2xl mb-6">{product.formattedPrice || product.price?.toFixed(2)}</p>
+            <p className="font-mono text-2xl mb-6">
+              {(() => {
+                const variant = getMatchingVariant();
+                if (variant?.priceData?.formattedPrice) return variant.priceData.formattedPrice;
+                if (variant?.priceData?.price != null) return variant.priceData.price.toFixed(2);
+                return product.formattedPrice || product.price?.toFixed(2);
+              })()}
+            </p>
 
             {product.description && (
               <div className="text-muted-foreground text-sm leading-relaxed mb-8 prose prose-sm max-w-none [&_p]:mb-3 [&_p:last-child]:mb-0" dangerouslySetInnerHTML={{ __html: product.description }} />
