@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Search } from 'lucide-react';
 
 export default function MedicalBay() {
   const [services, setServices] = useState([]);
@@ -13,6 +13,8 @@ export default function MedicalBay() {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
+  const [findingDate, setFindingDate] = useState(false);
+  const [nextAvailableDate, setNextAvailableDate] = useState(null);
 
   useEffect(() => {
     base44.functions.invoke('getWixServices', {})
@@ -28,6 +30,35 @@ export default function MedicalBay() {
         .catch(() => {});
     }
   }, [selectedService, selectedDate]);
+
+  const findNextAvailableDate = async () => {
+    if (!selectedService) return;
+    setFindingDate(true);
+    setNextAvailableDate(null);
+    
+    try {
+      // Check next 30 days
+      const today = new Date();
+      for (let i = 1; i <= 30; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() + i);
+        const dateStr = checkDate.toISOString().split('T')[0];
+        
+        const res = await base44.functions.invoke('getWixServiceSlots', { 
+          serviceId: selectedService.id, 
+          date: dateStr 
+        });
+        
+        if (res.data.slots && res.data.slots.length > 0) {
+          setNextAvailableDate(dateStr);
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('Error finding date:', err);
+    }
+    setFindingDate(false);
+  };
 
   const handleBook = async () => {
     if (!selectedService || !selectedDate || !selectedTime) return;
@@ -132,7 +163,31 @@ export default function MedicalBay() {
                         <Clock className="w-3 h-3" /> Available Times
                       </label>
                       {slots.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No available slots for this date</p>
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">No available slots for this date</p>
+                          <button
+                            onClick={findNextAvailableDate}
+                            disabled={findingDate}
+                            className="w-full flex items-center justify-center gap-2 text-xs px-3 py-2 border border-primary text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
+                          >
+                            <Search className="w-3 h-3" />
+                            {findingDate ? 'Searching...' : 'Find Next Available Date'}
+                          </button>
+                          {nextAvailableDate && (
+                            <div className="text-xs text-primary">
+                              Next available: {new Date(nextAvailableDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              <button
+                                onClick={() => {
+                                  setSelectedDate(nextAvailableDate);
+                                  setNextAvailableDate(null);
+                                }}
+                                className="ml-2 underline hover:text-primary/80"
+                              >
+                                Go to date
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
                           {slots.filter(s => s.available).map((slot, i) => (

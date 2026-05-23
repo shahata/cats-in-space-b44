@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
     } else if (data.service && typeof data.service === 'object') {
       services = [data.service];
     }
+    
     const processed = services.map(processService).filter(s => s);
 
     if (serviceId) {
