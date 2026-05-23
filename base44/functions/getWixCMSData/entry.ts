@@ -58,6 +58,10 @@ function processItem(item) {
         if (v && typeof v === 'object' && v.data && (v._id || v.id)) {
           return processItem(v);
         }
+        // If it's a string image URL in the array
+        if (typeof v === 'string' && v.startsWith('wix:image')) {
+          return processWixImage(v);
+        }
         return v;
       });
     }
@@ -112,7 +116,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: data, items: [], total: 0 }, { status: res.status });
     }
 
-    // Build a map of referenced items by their field name and ID
+    // Build a map of referenced items by their field name and ID (already processed)
     const refMap = {};
     if (data.referencedItems && typeof data.referencedItems === 'object') {
       for (const [fieldName, refItems] of Object.entries(data.referencedItems)) {
@@ -126,25 +130,23 @@ Deno.serve(async (req) => {
 
     // Process main items and merge in referenced items
     const items = (data.dataItems || []).map(item => {
-      const processed = processItem(item);
-      // Merge referenced items into the processed item
-      if (includeRefs.length > 0) {
+      // First merge raw referenced item data into the item before processing
+      const rawItem = { ...item };
+      if (includeRefs.length > 0 && data.referencedItems) {
         includeRefs.forEach(refField => {
-          if (refMap[refField] && processed[refField]) {
-            // If it's an array of IDs, replace with array of full items
-            if (Array.isArray(processed[refField])) {
-              processed[refField] = processed[refField]
-                .map(id => refMap[refField][id] || id)
-                .filter(Boolean);
-            } 
-            // If it's a single ID, replace with full item
-            else if (typeof processed[refField] === 'string' && refMap[refField][processed[refField]]) {
-              processed[refField] = refMap[refField][processed[refField]];
+          const rawVal = rawItem.data?.[refField];
+          if (rawVal && refMap[refField]) {
+            // Replace IDs with full processed referenced items
+            if (Array.isArray(rawVal)) {
+              rawItem.data[refField] = rawVal.map(id => refMap[refField][id] || id);
+            } else if (typeof rawVal === 'string' && refMap[refField][rawVal]) {
+              rawItem.data[refField] = refMap[refField][rawVal];
             }
           }
         });
       }
-      return processed;
+      // Now process the item (including merged references)
+      return processItem(rawItem);
     });
     const total = data.totalCount || items.length;
 
