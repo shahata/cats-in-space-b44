@@ -48,12 +48,19 @@ Deno.serve(async (req) => {
 
     const products = (productsData.products || []).map(p => {
       const options = p.productOptions || [];
-      const variants = (p.variants || []).map(v => ({
-        id: v.id,
-        choices: v.choices || {},
-        price: parseFloat(v.variant?.priceData?.price || p.priceData?.price || 0),
-        stock: v.stock?.inStock !== false,
-      }));
+      const variants = (p.variants || []).map(v => {
+        const variantPrice = parseFloat(v.variant?.priceData?.price || p.priceData?.price || 0);
+        const currency = p.priceData?.currency || '';
+        const formatted = v.variant?.priceData?.formatted?.price || '';
+        return {
+          id: v.id,
+          choices: v.choices || {},
+          price: variantPrice,
+          formattedPrice: formatted,
+          currency,
+          stock: v.stock?.inStock !== false,
+        };
+      });
       const inStock = p.stock?.inStock !== false;
       const hasVariants = p.manageVariants === true && variants.length > 0;
       return {

@@ -125,8 +125,7 @@ export default function ProductDetail() {
             <p className="font-mono text-2xl mb-6">
               {(() => {
                 const variant = getMatchingVariant();
-                if (variant?.priceData?.formattedPrice) return variant.priceData.formattedPrice;
-                if (variant?.priceData?.price != null) return variant.priceData.price.toFixed(2);
+                if (variant) return variant.formattedPrice || variant.price?.toFixed(2);
                 return product.formattedPrice || product.price?.toFixed(2);
               })()}
             </p>
