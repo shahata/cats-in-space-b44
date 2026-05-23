@@ -1,39 +1,18 @@
-async function safeJson(res) {
-  const text = await res.text();
-  try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
-}
+import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { giftCardProducts } from 'npm:@wix/gift-vouchers@1.0.76';
 
-async function getAccessToken(clientId) {
-  const res = await fetch('https://www.wixapis.com/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId, grantType: 'anonymous' }),
-  });
-  const data = await safeJson(res);
-  if (!res.ok) throw new Error('Token error: ' + JSON.stringify(data));
-  return data.access_token;
-}
-
-Deno.serve(async (req) => {
+Deno.serve(async () => {
   try {
     const clientId = Deno.env.get('WIX_CLIENT_ID');
-    const siteId = Deno.env.get('WIX_SITE_ID') || Deno.env.get('WIX_INSTANCE_ID');
     if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
-    const accessToken = await getAccessToken(clientId);
-    const headers = {
-      'Content-Type': 'application/json',
-      Authorization: accessToken,
-      'wix-site-id': siteId,
-    };
-
-    const res = await fetch('https://www.wixapis.com/gift-cards/v1/gift-card-products/query', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query: {} }),
+    const wix = createClient({
+      modules: { giftCardProducts },
+      auth: OAuthStrategy({ clientId }),
     });
-    const data = await safeJson(res);
-    const product = (data.giftCardProducts || [])[0];
+
+    const { items } = await wix.giftCardProducts.queryGiftCardProducts().find();
+    const product = items?.[0];
 
     if (!product) {
       return Response.json({
