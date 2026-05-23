@@ -47,7 +47,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: searchData }, { status: searchRes.status });
     }
 
-    const orders = (searchData.orders || []).map(o => ({
+    const orders = (searchData.orders || []).filter(o => {
+      const buyerEmail = o.buyerInfo?.email || '';
+      return buyerEmail.toLowerCase() === user.email.toLowerCase();
+    }).map(o => ({
       id: o._id,
       number: o.number,
       createdDate: o._createdDate,
