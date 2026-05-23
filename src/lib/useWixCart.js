@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 
 const CART_ID_KEY = 'wix_cart_id';
+const VISITOR_TOKEN_KEY = 'wix_visitor_token';
 
-function getStoredCartId() {
-  try { return localStorage.getItem(CART_ID_KEY); } catch { return null; }
+function getStored(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
 }
-function setStoredCartId(id) {
-  try { localStorage.setItem(CART_ID_KEY, id); } catch {}
+function setStored(key, val) {
+  try { if (val) localStorage.setItem(key, val); else localStorage.removeItem(key); } catch {}
 }
 
 export default function useWixCart() {
@@ -15,64 +16,67 @@ export default function useWixCart() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  const applyResponse = useCallback((resData) => {
+    if (resData.cart) setCart(resData.cart);
+    if (resData.cartId) setStored(CART_ID_KEY, resData.cartId);
+    if (resData.visitorToken) setStored(VISITOR_TOKEN_KEY, resData.visitorToken);
+  }, []);
+
+  const invoke = useCallback(async (payload) => {
+    const cartId = getStored(CART_ID_KEY);
+    const visitorToken = getStored(VISITOR_TOKEN_KEY);
+    const res = await base44.functions.invoke('wixCart', { ...payload, cartId, visitorToken });
+    applyResponse(res.data);
+    return res.data;
+  }, [applyResponse]);
+
   const fetchCart = useCallback(async () => {
-    const cartId = getStoredCartId();
+    const cartId = getStored(CART_ID_KEY);
     if (!cartId) { setLoading(false); return; }
     try {
-      const res = await base44.functions.invoke('wixCart', { action: 'get', cartId });
-      setCart(res.data.cart);
+      await invoke({ action: 'get' });
     } catch {
-      // Cart may be expired, clear it
-      localStorage.removeItem(CART_ID_KEY);
+      setStored(CART_ID_KEY, null);
+      setStored(VISITOR_TOKEN_KEY, null);
       setCart(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [invoke]);
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
   const addItem = useCallback(async (productId) => {
     setActionLoading(true);
-    const cartId = getStoredCartId();
-    const res = await base44.functions.invoke('wixCart', { action: 'addItem', cartId, productId, quantity: 1 });
-    const newCart = res.data.cart;
-    const newCartId = res.data.cartId || newCart.id;
-    setStoredCartId(newCartId);
-    setCart(newCart);
+    const res = await invoke({ action: 'addItem', productId, quantity: 1 });
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);
-    return newCart;
-  }, []);
+    return res.cart;
+  }, [invoke]);
 
   const removeItem = useCallback(async (lineItemId) => {
     setActionLoading(true);
-    const cartId = getStoredCartId();
-    const res = await base44.functions.invoke('wixCart', { action: 'removeItem', cartId, lineItemId });
-    setCart(res.data.cart);
+    await invoke({ action: 'removeItem', lineItemId });
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);
-  }, []);
+  }, [invoke]);
 
   const updateItem = useCallback(async (lineItemId, quantity) => {
     if (quantity <= 0) return removeItem(lineItemId);
     setActionLoading(true);
-    const cartId = getStoredCartId();
-    const res = await base44.functions.invoke('wixCart', { action: 'updateItem', cartId, lineItemId, quantity });
-    setCart(res.data.cart);
+    await invoke({ action: 'updateItem', lineItemId, quantity });
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);
-  }, [removeItem]);
+  }, [invoke, removeItem]);
 
   const createCheckout = useCallback(async () => {
-    const cartId = getStoredCartId();
-    const res = await base44.functions.invoke('wixCart', { action: 'createCheckout', cartId });
-    return res.data;
-  }, []);
+    const res = await invoke({ action: 'createCheckout' });
+    return res;
+  }, [invoke]);
 
   const lineItems = cart?.lineItems || [];
   const count = lineItems.reduce((s, i) => s + (i.quantity || 0), 0);
-  const total = parseFloat(cart?.priceSummary?.total?.amount || 0);
+  const total = parseFloat(cart?.priceSummary?.subtotal?.amount || cart?.subtotal?.amount || 0);
 
   return { cart, lineItems, count, total, loading, actionLoading, addItem, removeItem, updateItem, createCheckout, refetch: fetchCart };
 }

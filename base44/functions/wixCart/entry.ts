@@ -1,16 +1,30 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-
 const WIX_STORES_APP_ID = "1380b703-ce81-ff05-f115-39571d94dfcd";
 
-async function getWixAccessToken(clientId) {
+async function safeJson(res) {
+  const text = await res.text();
+  try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
+}
+
+async function getNewVisitorTokens(clientId) {
   const tokenResponse = await fetch("https://www.wixapis.com/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ clientId, grantType: "anonymous" }),
   });
-  const tokenData = await tokenResponse.json();
-  if (!tokenResponse.ok) throw new Error("Failed to get Wix access token");
-  return tokenData.access_token;
+  const tokenData = await safeJson(tokenResponse);
+  if (!tokenResponse.ok) throw new Error("Failed to get Wix token: " + JSON.stringify(tokenData));
+  return { accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token };
+}
+
+async function refreshVisitorToken(refreshToken) {
+  const tokenResponse = await fetch("https://www.wixapis.com/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken, grantType: "refresh_token" }),
+  });
+  const tokenData = await safeJson(tokenResponse);
+  if (!tokenResponse.ok) return null;
+  return { accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token };
 }
 
 function wixHeaders(accessToken, instanceId) {
@@ -23,28 +37,45 @@ function wixHeaders(accessToken, instanceId) {
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
     const clientId = Deno.env.get("WIX_CLIENT_ID");
     const instanceId = Deno.env.get("WIX_INSTANCE_ID");
     if (!clientId || !instanceId) {
       return Response.json({ error: "Missing Wix credentials" }, { status: 500 });
     }
 
-    const { action, cartId, productId, quantity, lineItemId } = await req.json();
-    const accessToken = await getWixAccessToken(clientId);
-    const headers = wixHeaders(accessToken, instanceId);
-
-    // CREATE CART
-    if (action === "create") {
-      const res = await fetch("https://www.wixapis.com/ecom/v1/carts", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (!res.ok) return Response.json({ error: data }, { status: res.status });
-      return Response.json({ cart: data.cart });
+    const rawText = await req.text();
+    let body = {};
+    try { if (rawText) body = JSON.parse(rawText); } catch {}
+    const url = new URL(req.url);
+    if (!body.action) {
+      url.searchParams.forEach((v, k) => { body[k] = v === 'null' ? null : v; });
     }
+
+    const { action, cartId, productId, lineItemId } = body;
+    const quantity = body.quantity ? parseInt(body.quantity) : 1;
+    let visitorToken = body.visitorToken || null;
+
+    // Get or refresh visitor token
+    let accessToken;
+    let newRefreshToken = null;
+    if (visitorToken) {
+      const renewed = await refreshVisitorToken(visitorToken);
+      if (renewed) {
+        accessToken = renewed.accessToken;
+        newRefreshToken = renewed.refreshToken;
+      } else {
+        // Token expired, get new one
+        const tokens = await getNewVisitorTokens(clientId);
+        accessToken = tokens.accessToken;
+        newRefreshToken = tokens.refreshToken;
+      }
+    } else {
+      const tokens = await getNewVisitorTokens(clientId);
+      accessToken = tokens.accessToken;
+      newRefreshToken = tokens.refreshToken;
+    }
+
+    const headers = wixHeaders(accessToken, instanceId);
 
     // GET CART
     if (action === "get") {
@@ -52,42 +83,43 @@ Deno.serve(async (req) => {
         method: "GET",
         headers,
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) return Response.json({ error: data }, { status: res.status });
-      return Response.json({ cart: data.cart });
+      return Response.json({ cart: data.cart, visitorToken: newRefreshToken });
     }
 
-    // ADD ITEM
+    // ADD ITEM — create cart with item if no cartId, otherwise add to existing cart
     if (action === "addItem") {
-      let cid = cartId;
-      // Create cart if no cartId
-      if (!cid) {
-        const createRes = await fetch("https://www.wixapis.com/ecom/v1/carts", {
+      if (!cartId) {
+        // Create cart with item in one request (single token)
+        const res = await fetch("https://www.wixapis.com/ecom/v1/carts", {
           method: "POST",
           headers,
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            lineItems: [{
+              catalogReference: { appId: WIX_STORES_APP_ID, catalogItemId: productId },
+              quantity: quantity || 1,
+            }],
+          }),
         });
-        const createData = await createRes.json();
-        if (!createRes.ok) return Response.json({ error: createData }, { status: createRes.status });
-        cid = createData.cart.id;
+        const data = await safeJson(res);
+        if (!res.ok) return Response.json({ error: data }, { status: res.status });
+        return Response.json({ cart: data.cart, cartId: data.cart.id, visitorToken: newRefreshToken });
+      } else {
+        const res = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cartId}/items`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            lineItems: [{
+              catalogReference: { appId: WIX_STORES_APP_ID, catalogItemId: productId },
+              quantity: quantity || 1,
+            }],
+          }),
+        });
+        const data = await safeJson(res);
+        if (!res.ok) return Response.json({ error: data }, { status: res.status });
+        return Response.json({ cart: data.cart, cartId, visitorToken: newRefreshToken });
       }
-
-      const res = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cid}/items`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          lineItems: [{
-            catalogReference: {
-              appId: WIX_STORES_APP_ID,
-              catalogItemId: productId,
-            },
-            quantity: quantity || 1,
-          }],
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) return Response.json({ error: data }, { status: res.status });
-      return Response.json({ cart: data.cart, cartId: cid });
     }
 
     // REMOVE LINE ITEM
@@ -97,9 +129,9 @@ Deno.serve(async (req) => {
         headers,
         body: JSON.stringify({ lineItemIds: [lineItemId] }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) return Response.json({ error: data }, { status: res.status });
-      return Response.json({ cart: data.cart });
+      return Response.json({ cart: data.cart, visitorToken: newRefreshToken });
     }
 
     // UPDATE LINE ITEM QUANTITY
@@ -108,15 +140,13 @@ Deno.serve(async (req) => {
         method: "PATCH",
         headers,
         body: JSON.stringify({
-          cart: {
-            lineItems: [{ id: lineItemId, quantity }],
-          },
+          cart: { lineItems: [{ id: lineItemId, quantity }] },
           mask: { paths: ["lineItems.quantity"] },
         }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) return Response.json({ error: data }, { status: res.status });
-      return Response.json({ cart: data.cart });
+      return Response.json({ cart: data.cart, visitorToken: newRefreshToken });
     }
 
     // CREATE CHECKOUT FROM CART
@@ -126,21 +156,21 @@ Deno.serve(async (req) => {
         headers,
         body: JSON.stringify({}),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) return Response.json({ error: data }, { status: res.status });
 
-      // Get the checkout URL
       const checkoutId = data.checkoutId;
       const checkoutRes = await fetch(`https://www.wixapis.com/ecom/v1/checkouts/${checkoutId}`, {
         method: "GET",
         headers,
       });
-      const checkoutData = await checkoutRes.json();
+      const checkoutData = await safeJson(checkoutRes);
       if (!checkoutRes.ok) return Response.json({ error: checkoutData }, { status: checkoutRes.status });
 
       return Response.json({
         checkoutId,
         checkoutUrl: checkoutData.checkout?.checkoutUrl,
+        visitorToken: newRefreshToken,
       });
     }
 
