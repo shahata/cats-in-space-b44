@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
 import ProductCard from '../components/ProductCard';
-import useCart from '../lib/useCart';
+import useWixCart from '../lib/useWixCart';
 import { motion } from 'framer-motion';
 
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { addItem } = useCart();
+  const { addItem } = useWixCart();
 
   useEffect(() => {
     base44.functions.invoke('getWixProducts', {}).then(res => {

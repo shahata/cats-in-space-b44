@@ -1,12 +1,20 @@
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import CartItem from '../components/CartItem';
-import useCart from '../lib/useCart';
+import useWixCart from '../lib/useWixCart';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Cart() {
-  const { items, updateQuantity, removeItem, total, count } = useCart();
+  const { lineItems: items, updateItem: updateQuantity, removeItem, total, count, loading, actionLoading } = useWixCart();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background font-body flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -30,7 +38,7 @@ export default function Cart() {
             <>
               <div className="border-t border-border/50">
                 {items.map(item => (
-                  <CartItem key={item.product_id} item={item} onUpdateQty={updateQuantity} onRemove={removeItem} />
+                  <CartItem key={item.id} item={item} onUpdateQty={updateQuantity} onRemove={removeItem} disabled={actionLoading} />
                 ))}
               </div>
 

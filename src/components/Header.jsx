@@ -7,16 +7,19 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const sync = () => {
+    const sync = async () => {
       try {
-        const cart = JSON.parse(localStorage.getItem('atelier_cart')) || [];
-        setCount(cart.reduce((s, i) => s + i.quantity, 0));
+        const cartId = localStorage.getItem('wix_cart_id');
+        if (!cartId) { setCount(0); return; }
+        const { base44 } = await import('@/api/base44Client');
+        const res = await base44.functions.invoke('wixCart', { action: 'get', cartId });
+        const items = res.data.cart?.lineItems || [];
+        setCount(items.reduce((s, i) => s + (i.quantity || 0), 0));
       } catch { setCount(0); }
     };
     sync();
     window.addEventListener('cart-updated', sync);
-    window.addEventListener('storage', sync);
-    return () => { window.removeEventListener('cart-updated', sync); window.removeEventListener('storage', sync); };
+    return () => { window.removeEventListener('cart-updated', sync); };
   }, []);
 
   useEffect(() => {

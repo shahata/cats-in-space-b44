@@ -6,7 +6,7 @@ export default function ProductCard({ product, onAdd, index }) {
   const [added, setAdded] = useState(false);
 
   const handleAdd = () => {
-    onAdd(product);
+    onAdd(product.wixId || product.id);
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
   };
