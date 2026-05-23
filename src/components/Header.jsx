@@ -60,10 +60,10 @@ export default function Header() {
 
   const navLinks = [
     { to: '/explore', label: 'Explore', hasDropdown: true },
+    { to: '/facilities', label: 'Facilities', hasDropdown: true },
     { to: '/blog', label: "Ship's Log" },
     { to: '/research', label: 'Research' },
     { to: '/plans', label: 'Plans' },
-    { to: '/facilities', label: 'Facilities', hasDropdown: true },
   ];
 
   const exploreLinks = [
@@ -92,7 +92,7 @@ export default function Header() {
             link.hasDropdown ? (
               <div key={link.to} className="relative" ref={exploreRef}>
                 <button
-                  onClick={() => setExploreOpen(o => !o)}
+                  onClick={() => { setFacilitiesOpen(false); setExploreOpen(o => !o); }}
                   className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
                   {link.label}
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${exploreOpen ? 'rotate-180' : ''}`} />
@@ -115,7 +115,7 @@ export default function Header() {
             ) : link.to === '/facilities' ? (
               <div key={link.to} className="relative" ref={facilitiesRef}>
                 <button
-                  onClick={() => setFacilitiesOpen(o => !o)}
+                  onClick={() => { setExploreOpen(false); setFacilitiesOpen(o => !o); }}
                   className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
                   {link.label}
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${facilitiesOpen ? 'rotate-180' : ''}`} />
