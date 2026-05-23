@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       url.searchParams.forEach((v, k) => { body[k] = v === 'null' ? null : v; });
     }
 
-    const { action, cartId, productId, lineItemId, variantId } = body;
+    const { action, cartId, productId, lineItemId, variantId, postFlowUrl } = body;
     const quantity = body.quantity ? parseInt(body.quantity) : 1;
     let visitorToken = body.visitorToken || null;
 
@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
         headers,
         body: JSON.stringify({
           ecomCheckout: { checkoutId },
-          callbacks: { postFlowUrl: "https://www.google.com" },
+          callbacks: { postFlowUrl: postFlowUrl || "https://www.google.com" },
         }),
       });
       const redirectData = await safeJson(redirectRes);

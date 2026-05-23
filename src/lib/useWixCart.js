@@ -85,7 +85,7 @@ export default function useWixCart() {
   }, [invoke]);
 
   const createCheckout = useCallback(async () => {
-    const res = await invoke({ action: 'createCheckout' });
+    const res = await invoke({ action: 'createCheckout', postFlowUrl: window.location.origin });
     return res;
   }, [invoke]);
 
