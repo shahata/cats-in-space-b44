@@ -28,22 +28,26 @@ function processWixImage(val, w = 600, h = 450) {
 
 function processItem(item) {
   if (!item) return null;
-  const d = item.data || {};
-  const processed = { _id: item.id, ...d };
+  // Handle both wrapped items (id + data) and flat items (direct fields)
+  const isWrapped = item.data !== undefined && (item.id || item._id);
+  const itemId = item.id || item._id;
+  const d = isWrapped ? (item.data || {}) : item;
+  const processed = { _id: itemId, ...d };
+  
   for (const [key, val] of Object.entries(processed)) {
     if (!val) continue;
     // Handle string image URLs
     if (typeof val === 'string' && val.startsWith('wix:image')) {
       processed[key] = processWixImage(val);
     } 
-    // Handle object with image URL (e.g., { url: 'wix:image://...' })
+    // Handle object with image URL
     else if (val && typeof val === 'object' && !Array.isArray(val)) {
-      // Check if this is a referenced item wrapper (has _id/id and data)
+      // Check if this is a wrapped item
       if (val.data && (val._id || val.id)) {
         processed[key] = processItem(val);
       } 
       // Check for image URL in url/src.url properties
-      else {
+      else if (!val.data) {
         if (val.url && typeof val.url === 'string' && val.url.startsWith('wix:image')) {
           processed[key] = processWixImage(val.url);
         } else if (val.src?.url && typeof val.src.url === 'string' && val.src.url.startsWith('wix:image')) {
@@ -54,13 +58,18 @@ function processItem(item) {
     // Handle arrays (including referenced items arrays)
     else if (Array.isArray(val)) {
       processed[key] = val.map(v => {
-        // If it's a referenced item wrapper, process it recursively
+        // If it's a wrapped item
         if (v && typeof v === 'object' && v.data && (v._id || v.id)) {
           return processItem(v);
         }
-        // If it's a string image URL in the array
+        // If it's a string image URL
         if (typeof v === 'string' && v.startsWith('wix:image')) {
           return processWixImage(v);
+        }
+        // If it's a plain object (flat referenced item), wrap and process
+        if (v && typeof v === 'object' && !v.data && (v._id || v.id)) {
+          const nested = { _id: v._id || v.id, data: v };
+          return processItem(nested);
         }
         return v;
       });
