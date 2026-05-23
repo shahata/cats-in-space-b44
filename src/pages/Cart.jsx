@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Cart() {
-  const { lineItems: items, updateItem: updateQuantity, removeItem, total, count, loading, actionLoading } = useWixCart();
+  const { lineItems: items, updateItem: updateQuantity, removeItem, total, formattedTotal, count, loading, actionLoading } = useWixCart();
 
   if (loading) {
     return (
@@ -45,7 +45,7 @@ export default function Cart() {
               <div className="mt-10 flex flex-col items-end gap-6">
                 <div className="flex items-baseline gap-8">
                   <span className="text-muted-foreground text-sm">Total ({count} {count === 1 ? 'item' : 'items'})</span>
-                  <span className="font-mono text-2xl">${total.toFixed(2)}</span>
+                  <span className="font-mono text-2xl">{formattedTotal || `${total.toFixed(2)}`}</span>
                 </div>
                 <Link
                   to="/checkout"

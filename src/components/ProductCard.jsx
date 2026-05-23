@@ -61,7 +61,7 @@ export default function ProductCard({ product, onAdd, index }) {
           <h3 className="font-display text-lg md:text-xl tracking-tight group-hover:italic transition-all truncate">{product.name}</h3>
           <p className="text-muted-foreground text-sm mt-1 line-clamp-2 font-body">{product.description}</p>
         </div>
-        <span className="font-mono text-sm tracking-wide shrink-0">${product.price?.toFixed(2)}</span>
+        <span className="font-mono text-sm tracking-wide shrink-0">{product.formattedPrice || product.price?.toFixed(2)}</span>
       </div>
       {showVariants && (
         <VariantModal

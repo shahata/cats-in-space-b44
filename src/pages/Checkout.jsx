@@ -5,7 +5,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Checkout() {
-  const { lineItems: items, total, createCheckout, loading } = useWixCart();
+  const { lineItems: items, total, formattedTotal, createCheckout, loading } = useWixCart();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -49,7 +49,7 @@ export default function Checkout() {
 
         <h1 className="font-display text-4xl md:text-5xl tracking-tight mb-4">Order Summary</h1>
         <p className="text-muted-foreground text-sm mb-10 font-mono">
-          {items.length} {items.length === 1 ? 'item' : 'items'} · ${total.toFixed(2)}
+          {items.length} {items.length === 1 ? 'item' : 'items'} · {formattedTotal || total.toFixed(2)}
         </p>
 
         <div className="border-t border-border/50 mb-10">
@@ -64,7 +64,7 @@ export default function Checkout() {
           ))}
           <div className="flex justify-between items-baseline pt-6">
             <span className="text-muted-foreground text-sm">Total</span>
-            <span className="font-mono text-2xl">${total.toFixed(2)}</span>
+            <span className="font-mono text-2xl">{formattedTotal || total.toFixed(2)}</span>
           </div>
         </div>
 

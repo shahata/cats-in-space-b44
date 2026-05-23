@@ -92,6 +92,7 @@ export default function useWixCart() {
   const lineItems = cart?.lineItems || [];
   const count = lineItems.reduce((s, i) => s + (i.quantity || 0), 0);
   const total = parseFloat(cart?.priceSummary?.subtotal?.amount || cart?.subtotal?.amount || 0);
+  const formattedTotal = cart?.priceSummary?.subtotal?.formattedAmount || cart?.subtotal?.formattedAmount || null;
 
-  return { cart, lineItems, count, total, loading, actionLoading, addItem, removeItem, updateItem, createCheckout, refetch: fetchCart };
+  return { cart, lineItems, count, total, formattedTotal, loading, actionLoading, addItem, removeItem, updateItem, createCheckout, refetch: fetchCart };
 }

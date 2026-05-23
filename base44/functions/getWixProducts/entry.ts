@@ -61,6 +61,8 @@ Deno.serve(async (req) => {
         name: p.name,
         description: p.description || "",
         price: parseFloat(p.priceData?.price || p.price?.price || 0),
+        formattedPrice: p.priceData?.formatted?.price || p.priceData?.formatted?.discountedPrice || "",
+        currency: p.priceData?.currency || "",
         image: p.media?.mainMedia?.image?.url || p.media?.main?.image?.url || "",
         wixId: p.id,
         hasVariants,

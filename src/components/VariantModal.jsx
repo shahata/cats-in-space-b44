@@ -66,7 +66,7 @@ export default function VariantModal({ product, onAdd, onClose }) {
             )}
             <div>
               <h3 className="font-display text-xl tracking-tight">{product.name}</h3>
-              <p className="font-mono text-sm text-muted-foreground mt-0.5">${product.price?.toFixed(2)}</p>
+              <p className="font-mono text-sm text-muted-foreground mt-0.5">{product.formattedPrice || product.price?.toFixed(2)}</p>
             </div>
           </div>
 
