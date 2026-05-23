@@ -7,7 +7,6 @@ import useWixCart from '../lib/useWixCart';
 import { motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { getStatusClass } from '../lib/wixUtils';
-import { STATIC_CREW } from '../lib/staticData';
 
 const HERO_IMG = 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1800&q=80';
 
@@ -23,11 +22,12 @@ export default function Home() {
     Promise.all([
       base44.functions.invoke('getWixProducts', {}).then(r => r.data.products || []).catch(() => []),
       base44.functions.invoke('getWixCMSData', { collectionId: 'Planets', limit: 3, sort: [{ fieldName: 'habitabilityScore', order: 'DESC' }] }).then(r => r.data.items || []).catch(() => []),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers', limit: 6 }).then(r => r.data.items || []).catch(() => []),
       base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', limit: 4 }).then(r => r.data.items || []).catch(() => []),
-    ]).then(([prods, pls, mis]) => {
+    ]).then(([prods, pls, cr, mis]) => {
       setProducts(prods);
       setPlanets(pls);
-      setCrew(STATIC_CREW);
+      setCrew(cr);
       setMissions(mis);
     }).finally(() => setLoading(false));
   }, []);
@@ -145,8 +145,8 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {crew.map((member, i) => {
-              const image = member.photo || member.image || member.mainImage;
-              const name = member.name || member.title;
+              const image = member.image || member.photo || member.mainImage;
+              const name = member.title || member.name;
               const slug = member.slug || name?.toLowerCase().replace(/\s+/g, '-');
               return (
                 <motion.div key={member._id || i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.07 }}>
