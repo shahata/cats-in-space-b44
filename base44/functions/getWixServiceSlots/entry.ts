@@ -25,8 +25,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { serviceId, date } = body;
 
-    if (!serviceId || !date) {
-      return Response.json({ error: "serviceId and date required" }, { status: 400 });
+    if (!serviceId) {
+      return Response.json({ error: "serviceId required" }, { status: 400 });
     }
 
     const accessToken = await getAnonToken(clientId);
@@ -36,14 +36,17 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // Get available slots using Wix Schedule Slots API
-    const res = await fetch('https://www.wixapis.com/bookings/v1/slots', {
+    // Use Wix Service Availability v2 API for better slot retrieval
+    const searchDate = date || new Date().toISOString().split('T')[0];
+    const res = await fetch('https://www.wixapis.com/_api/service-availability/v2/time-slots', {
       method: 'POST',
       headers,
       body: JSON.stringify({
         serviceId,
-        startDate: date,
-        endDate: date,
+        fromLocalDate: `${searchDate}T00:00:00`,
+        toLocalDate: `${searchDate}T23:59:59`,
+        bookable: true,
+        timeSlotsPerDay: 50,
       }),
     });
 
@@ -57,22 +60,18 @@ Deno.serve(async (req) => {
       return Response.json({ slots: [] });
     }
 
-    // Extract time slots - handle various response structures
+    // Extract time slots from v2 response
     let rawSlots = [];
-    if (data.slots && Array.isArray(data.slots)) {
-      rawSlots = data.slots;
-    } else if (data.timeSlots && Array.isArray(data.timeSlots)) {
+    if (data.timeSlots && Array.isArray(data.timeSlots)) {
       rawSlots = data.timeSlots;
-    } else if (data.availabilityEntries && Array.isArray(data.availabilityEntries)) {
-      rawSlots = data.availabilityEntries;
     }
 
     const slots = rawSlots
-      .filter(slot => slot.available !== false)
+      .filter(slot => slot.bookable !== false)
       .map(slot => ({
-        startTime: slot.startTime?.localTime || slot.startTime || slot.time,
-        endTime: slot.endTime?.localTime || slot.endTime,
-        available: slot.available !== false,
+        startTime: slot.localStartDate ? slot.localStartDate.substring(11, 16) : slot.startTime,
+        endTime: slot.localEndDate ? slot.localEndDate.substring(11, 16) : slot.endTime,
+        available: slot.bookable !== false,
       }));
 
     return Response.json({ slots });

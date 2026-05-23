@@ -4,6 +4,10 @@ import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Clock, Search } from 'lucide-react';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 
 export default function MedicalBay() {
   const [services, setServices] = useState([]);
@@ -75,7 +79,7 @@ export default function MedicalBay() {
     setBooking(false);
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -148,13 +152,26 @@ export default function MedicalBay() {
                     <label className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
                       <Calendar className="w-3 h-3" /> Select Date
                     </label>
-                    <input
-                      type="date"
-                      min={today}
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-body focus:outline-none focus:border-primary"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-body"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {selectedDate ? format(new Date(selectedDate), 'PPP') : 'Pick a date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate ? new Date(selectedDate) : undefined}
+                          onSelect={(date) => setSelectedDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                          disabled={(date) => date < new Date(today.setHours(0, 0, 0, 0))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {selectedDate && (
