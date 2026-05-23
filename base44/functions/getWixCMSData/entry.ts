@@ -1,14 +1,16 @@
-import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { createClient, OAuthStrategy, media } from 'npm:@wix/sdk@1.21.12';
 import { items } from 'npm:@wix/data@latest';
 
 function processWixImage(val, w = 600, h = 450) {
   if (!val) return null;
-  const url = typeof val === 'string' ? val : (val?.url || val?.src?.url || '');
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  const match = url.match(/wix:image:\/\/v1\/([^/]+)\/(.*)/);
-  if (match) return `https://static.wixstatic.com/media/${match[1]}/v1/fill/w_${w},h_${h},al_c,q_85,enc_auto/${match[2]}`;
-  return null;
+  const id = typeof val === 'string' ? val : (val?.url || val?.src?.url || val?.id);
+  if (!id) return null;
+  if (typeof id === 'string' && id.startsWith('http')) return id;
+  try {
+    return media.getScaledToFillImageUrl(id, w, h, {}).url || media.getImageUrl(id).url;
+  } catch {
+    return null;
+  }
 }
 
 function processItem(item) {
