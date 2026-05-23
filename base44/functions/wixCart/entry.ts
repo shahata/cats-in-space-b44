@@ -5,6 +5,40 @@ async function safeJson(res) {
   try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
 }
 
+async function getAdminToken(clientId, clientSecret) {
+  const res = await fetch('https://www.wixapis.com/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, clientSecret, grantType: 'client_credentials' }),
+  });
+  const data = await safeJson(res);
+  if (!res.ok) throw new Error('Failed to get admin token: ' + JSON.stringify(data));
+  return data.access_token;
+}
+
+async function getMemberTokens(adminToken, instanceId, email) {
+  // Find member by email
+  const memberRes = await fetch('https://www.wixapis.com/members/v1/members/query', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${adminToken}`, 'wix-site-id': instanceId, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: { filter: { 'loginEmail': email } } }),
+  });
+  const memberData = await safeJson(memberRes);
+  if (!memberRes.ok || !memberData.members?.length) return null;
+  const memberId = memberData.members[0]._id || memberData.members[0].id;
+  if (!memberId) return null;
+
+  // Generate member tokens
+  const tokenRes = await fetch('https://www.wixapis.com/iam/v1/tokens/member-token-by-id', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${adminToken}`, 'wix-site-id': instanceId, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ memberId }),
+  });
+  const tokenData = await safeJson(tokenRes);
+  if (!tokenRes.ok || !tokenData.accessToken) return null;
+  return { accessToken: tokenData.accessToken, refreshToken: tokenData.refreshToken };
+}
+
 async function getNewVisitorTokens(clientId) {
   const tokenResponse = await fetch("https://www.wixapis.com/oauth2/token", {
     method: "POST",
@@ -157,6 +191,8 @@ Deno.serve(async (req) => {
 
     // CREATE CHECKOUT FROM CART
     if (action === "createCheckout") {
+      const userEmail = body.userEmail || null;
+
       // Step 1: create checkout from cart
       const checkoutRes = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cartId}/create-checkout`, {
         method: "POST",
@@ -168,14 +204,29 @@ Deno.serve(async (req) => {
 
       const checkoutId = checkoutData.checkoutId;
 
-      // Step 2: create a redirect session to get the hosted checkout URL
+      // Step 2: try to get member tokens if user is logged in
+      let memberTokens = null;
+      if (userEmail) {
+        try {
+          const clientSecret = Deno.env.get('WIX_CLIENT_SECRET');
+          const adminToken = await getAdminToken(clientId, clientSecret);
+          memberTokens = await getMemberTokens(adminToken, instanceId, userEmail);
+        } catch { /* fall back to anonymous checkout */ }
+      }
+
+      // Step 3: create a redirect session to get the hosted checkout URL
+      const redirectBody = {
+        ecomCheckout: { checkoutId },
+        callbacks: { postFlowUrl: postFlowUrl || "https://www.google.com" },
+      };
+      if (memberTokens) {
+        redirectBody.memberTokens = memberTokens;
+      }
+
       const redirectRes = await fetch("https://www.wixapis.com/redirect-session/v1/redirect-session", {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          ecomCheckout: { checkoutId },
-          callbacks: { postFlowUrl: postFlowUrl || "https://www.google.com" },
-        }),
+        body: JSON.stringify(redirectBody),
       });
       const redirectData = await safeJson(redirectRes);
       if (!redirectRes.ok) return Response.json({ error: redirectData }, { status: redirectRes.status });

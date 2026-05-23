@@ -85,7 +85,15 @@ export default function useWixCart() {
   }, [invoke]);
 
   const createCheckout = useCallback(async () => {
-    const res = await invoke({ action: 'createCheckout', postFlowUrl: window.location.origin });
+    let userEmail = null;
+    try {
+      const authed = await base44.auth.isAuthenticated();
+      if (authed) {
+        const me = await base44.auth.me();
+        userEmail = me?.email || null;
+      }
+    } catch {}
+    const res = await invoke({ action: 'createCheckout', postFlowUrl: window.location.origin, userEmail });
     return res;
   }, [invoke]);
 
