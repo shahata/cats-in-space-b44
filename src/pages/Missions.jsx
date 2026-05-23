@@ -10,7 +10,7 @@ export default function Missions() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', includeRefs: ['crew'] })
+    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', includeRefs: ['crew', 'planet'] })
       .then(missionsRes => {
         const missionsData = missionsRes.data.items || [];
         setMissions(missionsData);
@@ -38,6 +38,7 @@ export default function Missions() {
               const name = mission.title;
               const slug = mission.slug;
               const destName = mission.planet;
+              const planetImage = mission.planet?.image || mission.planet?.photo || mission.planet?.mainImage;
               const statusColors = {
                 'in progress': 'border-l-primary',
                 'launching soon': 'border-l-[#FFD700]',
@@ -53,8 +54,8 @@ export default function Missions() {
                     className={`flex gap-6 bg-card border border-border ${borderColor} border-l-4 hover:border-border-primary/40 transition-all p-6 group`}>
                     {/* Planet Image */}
                     <div className="w-20 h-20 bg-muted rounded-full flex-shrink-0 flex items-center justify-center text-3xl overflow-hidden">
-                      {mission.planet ? (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center">🪐</div>
+                      {planetImage ? (
+                        <img src={planetImage} alt={destName} className="w-full h-full object-cover" />
                       ) : (
                         <span>🪐</span>
                       )}
