@@ -20,12 +20,13 @@ export default function MissionDetail() {
       const missionData = missionRes.data.item;
       if (missionData) {
         setMission(missionData);
-        // Filter crew by mission assignment if crewIds field exists
-        const assignedCrew = crewRes.data.items?.filter(c => 
-          missionData.crewIds?.includes(c._id) || 
-          missionData.crew?.includes(c._id) ||
-          (missionData.crewNames && missionData.crewNames.some(cn => cn.toLowerCase().includes((c.title || c.name || '').toLowerCase())))
-        ) || [];
+        // Show all crew if no specific assignment, or filter by crewIds/crew field
+        const allCrew = crewRes.data.items || [];
+        const assignedCrew = missionData.crewIds 
+          ? allCrew.filter(c => missionData.crewIds.includes(c._id))
+          : missionData.crew
+            ? allCrew.filter(c => missionData.crew.includes(c._id))
+            : allCrew;
         setCrew(assignedCrew);
       }
     }).catch(() => {}).finally(() => setLoading(false));
@@ -66,11 +67,7 @@ export default function MissionDetail() {
               )}
             </div>
 
-            {destName && (
-              <Link to={`/planets/${planetSlug}`} className="text-primary font-mono text-sm mb-6 hover:underline inline-flex items-center gap-1">
-                → {destName}
-              </Link>
-            )}
+
 
             {mission.description && (
               <div className="mb-10">
@@ -112,7 +109,7 @@ export default function MissionDetail() {
               <div className="space-y-3">
                 {[
                   ['Status', mission.status],
-                  ['Destination', destName],
+                  ['Destination', destName ? <Link key="dest" to={`/planets/${planetSlug}`} className="hover:underline">{destName}</Link> : null],
                   ['Launch Date', mission.launchDate?.split('T')[0] || mission.launchDate],
                 ].map(([label, val]) => val ? (
                   <div key={label} className="border-t border-border pt-3 first:border-0 first:pt-0">
