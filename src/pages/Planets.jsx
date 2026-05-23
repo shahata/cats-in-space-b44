@@ -55,14 +55,14 @@ export default function Planets() {
                         )}
                       </div>
                       {planet.tagline && <p className="text-muted-foreground text-sm italic mb-3">{planet.tagline}</p>}
-                      {planet.habitability != null && (
+                      {planet.habitabilityScore != null && (
                         <div className="mb-3">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-mono text-muted-foreground">Habitability</span>
-                            <span className="text-xs font-mono text-primary">{planet.habitability}%</span>
+                            <span className="text-xs font-mono text-primary">{planet.habitabilityScore}%</span>
                           </div>
                           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{ width: `${planet.habitability}%` }} />
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${planet.habitabilityScore}%` }} />
                           </div>
                         </div>
                       )}

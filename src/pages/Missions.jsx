@@ -10,7 +10,7 @@ export default function Missions() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', includeRefs: ['crew', 'destination'] })
+    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions' })
       .then(res => setMissions(res.data.items || []))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -33,20 +33,14 @@ export default function Missions() {
         ) : (
           <div className="space-y-4 max-w-3xl">
             {missions.map((mission, i) => {
-              const name = mission.name || mission.title;
-              const slug = mission.slug || name?.toLowerCase().replace(/\s+/g, '-');
-              const destImage = mission.destination?.mainImage || mission.destination?.photo || mission.destination?.image;
-              const destName = mission.destination?.name || mission.destination?.title;
-              const crewArr = Array.isArray(mission.crew) ? mission.crew : [];
+              const name = mission.title;
+              const slug = mission.slug;
+              const destName = mission.planet;
               return (
                 <motion.div key={mission._id || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
                   <Link to={`/missions/${slug}`}
                     className="flex gap-5 items-start bg-card border border-border hover:border-primary/40 transition-all p-6 group">
-                    {destImage ? (
-                      <img src={destImage} alt={destName} className="w-16 h-16 object-cover rounded flex-shrink-0" />
-                    ) : (
-                      <div className="w-16 h-16 bg-muted rounded flex-shrink-0 flex items-center justify-center text-2xl">🚀</div>
-                    )}
+                    <div className="w-16 h-16 bg-muted rounded flex-shrink-0 flex items-center justify-center text-2xl">🚀</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 flex-wrap mb-1">
                         <h2 className="font-display text-xl tracking-wider text-foreground group-hover:text-primary transition-colors uppercase">
@@ -57,20 +51,8 @@ export default function Missions() {
                         )}
                       </div>
                       {destName && <p className="text-primary text-xs font-mono mb-2">→ {destName}</p>}
-                      {mission.description && <p className="text-muted-foreground text-sm line-clamp-2 mb-3">{mission.description}</p>}
                       <div className="flex items-center justify-between">
-                        {crewArr.length > 0 && (
-                          <div className="flex -space-x-2">
-                            {crewArr.slice(0, 5).map((c, ci) => {
-                              const img = c.photo || c.image || c.mainImage;
-                              return img ? (
-                                <img key={ci} src={img} alt="" className="w-7 h-7 rounded-full border-2 border-card object-cover" />
-                              ) : (
-                                <div key={ci} className="w-7 h-7 rounded-full border-2 border-card bg-muted flex items-center justify-center text-xs">🐱</div>
-                              );
-                            })}
-                          </div>
-                        )}
+                        <div />
                         {mission.launchDate && (
                           <span className="text-xs font-mono text-primary">{mission.launchDate?.split('T')[0] || mission.launchDate}</span>
                         )}

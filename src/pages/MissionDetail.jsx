@@ -12,7 +12,7 @@ export default function MissionDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', slug, includeRefs: ['crew', 'destination'] })
+    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', slug })
       .then(res => setMission(res.data.item || null))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -32,11 +32,9 @@ export default function MissionDetail() {
     </div>
   );
 
-  const name = mission.name || mission.title;
-  const destName = mission.destination?.name || mission.destination?.title;
-  const destSlug = mission.destination?.slug;
-  const destImage = mission.destination?.mainImage || mission.destination?.photo || mission.destination?.image;
-  const crewArr = Array.isArray(mission.crew) ? mission.crew : [];
+  const name = mission.title;
+  const destName = mission.planet;
+  const crewArr = [];
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -56,9 +54,7 @@ export default function MissionDetail() {
             </div>
 
             {destName && (
-              <Link to={`/planets/${destSlug}`} className="inline-flex items-center gap-1 text-primary font-mono text-sm hover:underline mb-6">
-                → {destName}
-              </Link>
+              <p className="text-primary font-mono text-sm mb-6">→ {destName}</p>
             )}
 
             {mission.description && (
@@ -96,17 +92,6 @@ export default function MissionDetail() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-            {destImage && (
-              <div className="mb-4">
-                {destSlug ? (
-                  <Link to={`/planets/${destSlug}`}>
-                    <img src={destImage} alt={destName} className="w-full aspect-square object-cover rounded border border-border hover:border-primary/40 transition-colors" />
-                  </Link>
-                ) : (
-                  <img src={destImage} alt={destName} className="w-full aspect-square object-cover rounded border border-border" />
-                )}
-              </div>
-            )}
             <div className="bg-card border border-border p-6">
               <h3 className="font-display text-xl tracking-widest text-primary uppercase mb-4">Details</h3>
               <div className="space-y-3">

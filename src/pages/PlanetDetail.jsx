@@ -13,13 +13,17 @@ export default function PlanetDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Planets', slug }),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', filter: { 'destination.slug': { $eq: slug } } }),
-    ]).then(([planetRes, missionsRes]) => {
-      setPlanet(planetRes.data.item || null);
-      setMissions(missionsRes.data.items || []);
-    }).catch(() => {}).finally(() => setLoading(false));
+    const load = async () => {
+      const planetRes = await base44.functions.invoke('getWixCMSData', { collectionId: 'Planets', slug });
+      const p = planetRes.data.item || null;
+      setPlanet(p);
+      if (p?.title) {
+        const missionsRes = await base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', filter: { planet: { $eq: p.title } } });
+        setMissions(missionsRes.data.items || []);
+      }
+      setLoading(false);
+    };
+    load().catch(() => setLoading(false));
   }, [slug]);
 
   if (loading) return (
@@ -36,7 +40,7 @@ export default function PlanetDetail() {
     </div>
   );
 
-  const image = planet.mainImage || planet.photo || planet.image;
+  const image = planet.image;
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -84,14 +88,14 @@ export default function PlanetDetail() {
             <div className="bg-card border border-border p-6">
               <h3 className="font-display text-xl tracking-widest text-primary uppercase mb-5">Planet Stats</h3>
               <div className="space-y-4">
-                {planet.habitability != null && (
+                {planet.habitabilityScore != null && (
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="text-muted-foreground text-sm">Habitability</span>
-                      <span className="text-primary font-mono">{planet.habitability}%</span>
+                      <span className="text-primary font-mono">{planet.habitabilityScore}%</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${planet.habitability}%` }} />
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${planet.habitabilityScore}%` }} />
                     </div>
                   </div>
                 )}

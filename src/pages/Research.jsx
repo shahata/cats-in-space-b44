@@ -128,15 +128,7 @@ export default function Research() {
   const [campaigns, setCampaigns] = useState(FALLBACK_CAMPAIGNS);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'ResearchCampaigns' })
-      .then(res => {
-        const items = res.data.items || [];
-        if (items.length > 0) setCampaigns(items);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  useEffect(() => { setLoading(false); }, []);
 
   return (
     <div className="min-h-screen bg-background font-body">

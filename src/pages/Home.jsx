@@ -7,6 +7,7 @@ import useWixCart from '../lib/useWixCart';
 import { motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { getStatusClass } from '../lib/wixUtils';
+import { STATIC_CREW } from '../lib/staticData';
 
 const HERO_IMG = 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1800&q=80';
 
@@ -21,13 +22,12 @@ export default function Home() {
   useEffect(() => {
     Promise.all([
       base44.functions.invoke('getWixProducts', {}).then(r => r.data.products || []).catch(() => []),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Planets', limit: 3, sort: [{ fieldName: 'habitability', order: 'DESC' }] }).then(r => r.data.items || []).catch(() => []),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Crew', limit: 6 }).then(r => r.data.items || []).catch(() => []),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', limit: 4, includeRefs: ['destination'] }).then(r => r.data.items || []).catch(() => []),
-    ]).then(([prods, pls, cr, mis]) => {
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Planets', limit: 3, sort: [{ fieldName: 'habitabilityScore', order: 'DESC' }] }).then(r => r.data.items || []).catch(() => []),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', limit: 4 }).then(r => r.data.items || []).catch(() => []),
+    ]).then(([prods, pls, mis]) => {
       setProducts(prods);
       setPlanets(pls);
-      setCrew(cr);
+      setCrew(STATIC_CREW);
       setMissions(mis);
     }).finally(() => setLoading(false));
   }, []);
@@ -114,10 +114,10 @@ export default function Home() {
                       {planet.status && <span className={`text-xs font-mono px-2 py-0.5 border rounded-full mb-2 inline-block ${getStatusClass(planet.status)}`}>{planet.status}</span>}
                       <h3 className="font-display text-xl tracking-wider text-foreground group-hover:text-primary transition-colors uppercase mb-1">{planet.name || planet.title}</h3>
                       {planet.tagline && <p className="text-muted-foreground text-xs mb-3">{planet.tagline}</p>}
-                      {planet.habitability != null && (
+                      {planet.habitabilityScore != null && (
                         <div>
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary" style={{ width: `${planet.habitability}%` }} /></div>
-                          <p className="text-xs font-mono text-primary mt-1">{planet.habitability}% Habitable</p>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary" style={{ width: `${planet.habitabilityScore}%` }} /></div>
+                          <p className="text-xs font-mono text-primary mt-1">{planet.habitabilityScore}% Habitable</p>
                         </div>
                       )}
                       {planet.distance && <p className="text-xs text-muted-foreground mt-1">{planet.distance} Distance</p>}
@@ -181,7 +181,7 @@ export default function Home() {
             {missions.map((mission, i) => {
               const name = mission.name || mission.title;
               const slug = mission.slug || name?.toLowerCase().replace(/\s+/g, '-');
-              const destName = mission.destination?.name || mission.destination?.title;
+              const destName = mission.planet;
               return (
                 <motion.div key={mission._id || i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
                   <Link to={`/missions/${slug}`} className="block p-5 border border-border hover:border-primary/40 transition-colors group">

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { STATIC_CREW } from '../lib/staticData';
 import Header from '../components/Header';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
@@ -8,15 +8,8 @@ import { getStatusClass } from '../lib/wixUtils';
 
 export default function CrewDetail() {
   const { slug } = useParams();
-  const [member, setMember] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'Crew', slug })
-      .then(res => setMember(res.data.item || null))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [slug]);
+  const member = STATIC_CREW.find(m => m.slug === slug) || null;
+  const loading = false;
 
   if (loading) return (
     <div className="min-h-screen bg-background font-body">
@@ -32,8 +25,8 @@ export default function CrewDetail() {
     </div>
   );
 
-  const image = member.photo || member.image || member.mainImage;
-  const name = member.name || member.title;
+  const image = member.image;
+  const name = member.title;
 
   return (
     <div className="min-h-screen bg-background font-body">

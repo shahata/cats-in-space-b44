@@ -1,28 +1,14 @@
-import { useState, useEffect } from 'react';
+import { STATIC_PLANS } from '../lib/staticData';
 import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 
 export default function Plans() {
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const plans = STATIC_PLANS;
+  const loading = false;
 
-  useEffect(() => {
-    base44.functions.invoke('getWixPlans', {})
-      .then(res => setPlans(res.data.plans || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Sort: free last
-  const sorted = [...plans].sort((a, b) => {
-    if (a.isFree && !b.isFree) return 1;
-    if (!a.isFree && b.isFree) return -1;
-    if (a.highlighted && !b.highlighted) return -1;
-    if (!a.highlighted && b.highlighted) return 1;
-    return 0;
-  });
+  const sorted = plans;
 
   return (
     <div className="min-h-screen bg-background font-body">
