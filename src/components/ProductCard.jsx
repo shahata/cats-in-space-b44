@@ -85,6 +85,23 @@ export default function ProductCard({ product, onAdd, index }) {
                 Sold Out
               </div>
             )}
+
+            {product.ribbon && product.inStock && (
+              <div className="absolute top-3 left-3 bg-primary text-primary-foreground text-[10px] tracking-widest uppercase font-mono px-2 py-1">
+                {product.ribbon}
+              </div>
+            )}
+
+            {/* Category tags top-left, like the reference site */}
+            {product.collections?.length > 0 && (
+              <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+                {product.collections.slice(0, 2).map(c => (
+                  <span key={c.id} className="bg-primary/90 text-primary-foreground text-[9px] tracking-widest uppercase font-mono px-2 py-0.5">
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Info */}

@@ -26,7 +26,10 @@ import Explore from './pages/Explore';
 import Research from './pages/Research';
 import MedicalBay from './pages/MedicalBay';
 import Restaurant from './pages/Restaurant';
+import RestaurantOrder from './pages/RestaurantOrder';
+import RestaurantReserve from './pages/RestaurantReserve';
 import Cinema from './pages/Cinema';
+import CinemaMovie from './pages/CinemaMovie';
 import Shop from './pages/Shop';
 
 const AuthenticatedApp = () => {
@@ -77,7 +80,10 @@ const AuthenticatedApp = () => {
       <Route path="/research" element={<Research />} />
       <Route path="/medical-bay" element={<MedicalBay />} />
       <Route path="/restaurant" element={<Restaurant />} />
+      <Route path="/restaurant/order" element={<RestaurantOrder />} />
+      <Route path="/restaurant/reserve" element={<RestaurantReserve />} />
       <Route path="/cinema" element={<Cinema />} />
+      <Route path="/cinema/:slug" element={<CinemaMovie />} />
       <Route path="/shop" element={<Shop />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>

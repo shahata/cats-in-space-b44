@@ -54,17 +54,27 @@ Deno.serve(async (req) => {
     const events = (data.events || []).map(e => {
       const sched = e.scheduling || {};
       const config = sched.config || {};
+      const startISO = config.startDate || null;
+      const tags = e.tags || e.categories || [];
+      const tagNames = (Array.isArray(tags) ? tags : []).map(t => typeof t === 'string' ? t : (t.name || t.title)).filter(Boolean);
+      const slug = e.slug || (e.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       return {
         id: e.id || e._id,
+        slug,
         name: e.title,
         description: e.description,
-        startDate: config.startDate ? config.startDate.split('T')[0] : null,
+        startDateISO: startISO,
+        startDate: startISO ? startISO.split('T')[0] : null,
         startTime: sched.startTimeFormatted || config.startTime,
+        endDateISO: config.endDate || null,
         location: e.location?.name,
         image: e.mainImage?.url,
         price: e.ticketPricing?.price?.value || 0,
         currency: e.ticketPricing?.price?.currency || 'USD',
         availableTickets: e.ticketInventory?.availableTickets,
+        tags: tagNames,
+        about: e.about,
+        recurringStatus: e.scheduling?.config?.recurringEvents?.length || 0,
       };
     });
 

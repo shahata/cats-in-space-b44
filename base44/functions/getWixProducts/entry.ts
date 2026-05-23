@@ -30,21 +30,45 @@ Deno.serve(async (req) => {
 
     const accessToken = await getWixAccessToken(clientId);
 
-    const productsResponse = await fetch("https://www.wixapis.com/stores-reader/v1/products/query", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "wix-site-id": instanceId,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ includeVariants: true }),
-    });
+    const headers = {
+      "Authorization": `Bearer ${accessToken}`,
+      "wix-site-id": instanceId,
+      "Content-Type": "application/json",
+    };
+
+    const [productsResponse, collectionsResponse] = await Promise.all([
+      fetch("https://www.wixapis.com/stores-reader/v1/products/query", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ includeVariants: true }),
+      }),
+      fetch("https://www.wixapis.com/stores-reader/v1/collections/query", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ query: {} }),
+      }),
+    ]);
 
     const productsData = await productsResponse.json();
+    const collectionsData = await collectionsResponse.json().catch(() => ({}));
 
     if (!productsResponse.ok) {
       return Response.json({ error: productsData }, { status: productsResponse.status });
     }
+
+    const collections = (collectionsData.collections || []).map(c => ({
+      id: c.id || c._id,
+      name: c.name,
+      slug: c.slug,
+    }));
+
+    const productCollectionsMap = {};
+    (collectionsData.collections || []).forEach(c => {
+      (c.productIds || []).forEach(pid => {
+        if (!productCollectionsMap[pid]) productCollectionsMap[pid] = [];
+        productCollectionsMap[pid].push({ id: c.id || c._id, name: c.name });
+      });
+    });
 
     const products = (productsData.products || []).map(p => {
       const options = p.productOptions || [];
@@ -63,6 +87,7 @@ Deno.serve(async (req) => {
       });
       const inStock = p.stock?.inStock !== false;
       const hasVariants = p.manageVariants === true && variants.length > 0;
+      const productCollections = productCollectionsMap[p.id] || [];
       return {
         id: p.id,
         name: p.name,
@@ -83,10 +108,12 @@ Deno.serve(async (req) => {
           })),
         })),
         variants,
+        collections: productCollections,
+        ribbon: p.ribbon || (p.stock?.inventoryStatus === 'PRE_ORDER' ? 'Pre-Order' : null),
       };
     });
 
-    return Response.json({ products });
+    return Response.json({ products, collections });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

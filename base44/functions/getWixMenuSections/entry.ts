@@ -128,6 +128,19 @@ Deno.serve(async (req) => {
           imageUrl = `https://static.wixstatic.com/media/${imageUrl}`;
         }
         
+        // Extract dietary/allergen labels
+        const labels = [];
+        if (Array.isArray(item.labels)) {
+          item.labels.forEach(l => {
+            const name = typeof l === 'string' ? l : (l.name || l.title || l.label);
+            if (name) labels.push(name);
+          });
+        }
+        if (Array.isArray(item.labelIds)) labels.push(...item.labelIds);
+        if (Array.isArray(item.dietaryLabels)) labels.push(...item.dietaryLabels);
+        if (Array.isArray(item.allergens)) labels.push(...item.allergens);
+        if (Array.isArray(item.tags)) labels.push(...item.tags);
+
         return {
           id: item._id || item.id,
           name: item.name || item.title,
@@ -137,6 +150,7 @@ Deno.serve(async (req) => {
           image: imageUrl,
           categoryId: item.sectionId,
           available: item.inStock !== false,
+          labels: [...new Set(labels)],
         };
       });
     }
