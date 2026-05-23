@@ -7,15 +7,30 @@ import { getStatusClass } from '../lib/wixUtils';
 
 export default function Missions() {
   const [missions, setMissions] = useState([]);
+  const [crew, setCrew] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', includeRefs: ['crew', 'planet'] })
-      .then(missionsRes => {
-        const missionsData = missionsRes.data.items || [];
-        setMissions(missionsData);
-      }).catch(err => console.error('Missions error:', err))
-      .finally(() => setLoading(false));
+    Promise.all([
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', includeRefs: ['crew'] }),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Planets' })
+    ]).then(([missionsRes, planetsRes]) => {
+      const missionsData = missionsRes.data.items || [];
+      const allPlanets = planetsRes.data.items || [];
+      
+      const enrichedMissions = missionsData.map(m => {
+        // crew is now included via includeRefs
+        const crewMembers = m.crew || [];
+        return {
+          ...m,
+          crewMembers,
+          planetData: allPlanets.find(p => (p.name || p.title || '').toLowerCase() === (m.planet || '').toLowerCase())
+        };
+      });
+      
+      setMissions(enrichedMissions);
+    }).catch(err => console.error('Missions error:', err))
+    .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -37,8 +52,8 @@ export default function Missions() {
             {missions.map((mission, i) => {
               const name = mission.title;
               const slug = mission.slug;
-              const destName = mission.planet?.name || mission.planet?.title || mission.planet;
-              const planetImage = mission.planet?.mainImage || mission.planet?.photo || mission.planet?.image;
+              const destName = mission.planet;
+              const planetImage = mission.planetData?.mainImage || mission.planetData?.photo || mission.planetData?.image;
               const statusColors = {
                 'in progress': 'border-l-primary',
                 'launching soon': 'border-l-[#FFD700]',
@@ -83,13 +98,13 @@ export default function Missions() {
                       )}
                       
                       <div className="flex items-center justify-between flex-wrap gap-4 pt-2">
-                        {mission.crew?.length > 0 && (
+                        {mission.crewMembers?.length > 0 && (
                           <div className="flex flex-col gap-1">
                             <span className="text-xs text-muted-foreground font-mono uppercase">Crew</span>
                             <div className="flex gap-1 flex-wrap">
-                              {mission.crew.map((c, ci) => {
-                                const cImage = c.image || c.photo || c.mainImage;
-                                const cName = c.title || c.name || 'Crew';
+                              {mission.crewMembers.map((c, ci) => {
+                                const cImage = c.image;
+                                const cName = c.name || 'Crew';
                                 return (
                                   <div key={ci} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-sm overflow-hidden" title={cName}>
                                     {cImage ? (

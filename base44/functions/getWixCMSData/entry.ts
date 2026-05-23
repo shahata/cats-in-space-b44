@@ -61,10 +61,6 @@ function processItem(item) {
         return v;
       });
     }
-    // Handle referenced items that are not in arrays (e.g., single reference fields)
-    else if (val && typeof val === 'object' && val.data && (val._id || val.id)) {
-      processed[key] = processItem(val);
-    }
   }
   return processed;
 }
