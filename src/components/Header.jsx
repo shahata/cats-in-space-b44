@@ -15,6 +15,11 @@ export default function Header() {
   const [facilitiesOpen, setFacilitiesOpen] = useState(false);
   const facilitiesRef = useRef(null);
 
+  const closeAllDropdowns = () => {
+    setExploreOpen(false);
+    setFacilitiesOpen(false);
+  };
+
   useEffect(() => {
     base44.auth.isAuthenticated().then(authed => {
       if (authed) {
@@ -92,7 +97,7 @@ export default function Header() {
             link.hasDropdown ? (
               <div key={link.to} className="relative" ref={exploreRef}>
                 <button
-                  onClick={() => { setFacilitiesOpen(false); setExploreOpen(o => !o); }}
+                  onClick={() => { closeAllDropdowns(); setExploreOpen(o => !o); }}
                   className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
                   {link.label}
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${exploreOpen ? 'rotate-180' : ''}`} />
@@ -115,7 +120,7 @@ export default function Header() {
             ) : link.to === '/facilities' ? (
               <div key={link.to} className="relative" ref={facilitiesRef}>
                 <button
-                  onClick={() => { setExploreOpen(false); setFacilitiesOpen(o => !o); }}
+                  onClick={() => { closeAllDropdowns(); setFacilitiesOpen(o => !o); }}
                   className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
                   {link.label}
                   <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${facilitiesOpen ? 'rotate-180' : ''}`} />
