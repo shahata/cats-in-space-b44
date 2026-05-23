@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 const facilities = [
   {
     deck: 'DECK 2',
-    image: 'https://images.unsplash.com/photo-1559583109-3e7968c5f03d?w=600&q=80',
+    image: 'https://static.wixstatic.com/media/a2b5c3_supply_depot.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_supply_depot.jpg',
     name: 'Supply Depot',
     description: 'Gear up for the mission — tactical hairballs, zero-gravity cat trees, and nebula-nip from our shop.',
     link: '/',
@@ -13,7 +13,7 @@ const facilities = [
   },
   {
     deck: 'DECK 3',
-    image: 'https://images.unsplash.com/photo-1516574187841-69301976e493?w=600&q=80',
+    image: 'https://static.wixstatic.com/media/a2b5c3_medical_bay.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_medical_bay.jpg',
     name: 'Medical Bay',
     description: 'Routine checkups, vaccinations against alien parasites, and that annoying hairball cough.',
     link: '/crew',
@@ -21,7 +21,7 @@ const facilities = [
   },
   {
     deck: 'DECK 5',
-    image: 'https://images.unsplash.com/photo-1556910103-1c02745a30bf?w=600&q=80',
+    image: 'https://static.wixstatic.com/media/a2b5c3_cosmic_kitchen.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_cosmic_kitchen.jpg',
     name: 'The Cosmic Kitchen',
     description: 'Intergalactic cuisine, pickup and delivery across the ship. The Nebula Nachos are legendary.',
     link: '/blog',
@@ -29,7 +29,7 @@ const facilities = [
   },
   {
     deck: 'DECK 7',
-    image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&q=80',
+    image: 'https://static.wixstatic.com/media/a2b5c3_nebula_theater.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_nebula_theater.jpg',
     name: 'The Nebula Theater',
     description: 'Weekly screenings of cat-themed classics — Star Paws, The Meowtrix, Cat-ablanca — every weeknight at 20:00 sharp.',
     link: '/blog',
@@ -78,9 +78,9 @@ export default function Explore() {
         {/* Navigation sections */}
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&q=80', title: 'Planet Database', desc: 'All surveyed worlds ranked by habitability for feline life.', link: '/planets', linkText: 'Explore Planets →' },
-            { image: 'https://images.unsplash.com/photo-1541873676-a18131494164?w=600&q=80', title: 'Crew Roster', desc: 'The bravest cats to ever leave a perfectly good cardboard box behind.', link: '/crew', linkText: 'Meet the Crew →' },
-            { image: 'https://images.unsplash.com/photo-1517976487492-5750f31959d3?w=600&q=80', title: 'Mission Control', desc: 'Tracking every whisker-raising expedition into the unknown.', link: '/missions', linkText: 'All Missions →' },
+            { image: 'https://static.wixstatic.com/media/a2b5c3_planet_db.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_planet_db.jpg', title: 'Planet Database', desc: 'All surveyed worlds ranked by habitability for feline life.', link: '/planets', linkText: 'Explore Planets →' },
+            { image: 'https://static.wixstatic.com/media/a2b5c3_crew_roster.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_crew_roster.jpg', title: 'Crew Roster', desc: 'The bravest cats to ever leave a perfectly good cardboard box behind.', link: '/crew', linkText: 'Meet the Crew →' },
+            { image: 'https://static.wixstatic.com/media/a2b5c3_mission_ctrl.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_mission_ctrl.jpg', title: 'Mission Control', desc: 'Tracking every whisker-raising expedition into the unknown.', link: '/missions', linkText: 'All Missions →' },
           ].map((item, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + i * 0.1 }}>
               <Link to={item.link} className="block bg-card border border-border overflow-hidden hover:border-primary/40 p-0 group transition-colors h-full flex flex-col">
@@ -99,7 +99,7 @@ export default function Explore() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
           className="mt-16 text-center border border-border bg-card p-12 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
-            <img src="https://static.wixstatic.com/media/a2b5c3_d8f9e2a1b3c4d5e6f7g8h9i0j1k2l3m4.jpg/v1/fill/w_1200,h_800,al_c,q_85/a2b5c3_d8f9e2a1b3c4d5e6f7g8h9i0j1k2l3m4.jpg" alt="" className="w-full h-full object-cover" />
+            <img src="https://static.wixstatic.com/media/a2b5c3_membership_bg.jpg/v1/fill/w_1200,h_800,al_c,q_85/a2b5c3_membership_bg.jpg" alt="" className="w-full h-full object-cover" />
           </div>
           <div className="relative z-10">
             <h2 className="font-display text-3xl tracking-widest text-primary uppercase mb-4">Join the Crew</h2>
