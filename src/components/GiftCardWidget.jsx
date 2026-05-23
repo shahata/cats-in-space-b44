@@ -14,6 +14,8 @@ export default function GiftCardWidget({ giftCard, onAddToCart, onBuyNow }) {
 
   const amount = isCustom ? parseFloat(customAmount) || 0 : selectedAmount;
   const symbol = giftCard.currency === 'ILS' ? '₪' : (giftCard.currency === 'USD' ? '$' : giftCard.currency);
+  const selectedVariant = !isCustom && giftCard.variants?.find(v => v.value === selectedAmount);
+  const displayImage = selectedVariant?.image || giftCard.image;
 
   const handleAdd = async () => {
     if (!amount || !recipientEmail) return;
@@ -44,8 +46,8 @@ export default function GiftCardWidget({ giftCard, onAddToCart, onBuyNow }) {
             <Gift className="w-5 h-5 text-primary" />
             <h2 className="font-display text-2xl tracking-widest text-primary uppercase">{giftCard.name}</h2>
           </div>
-          {giftCard.image ? (
-            <img src={giftCard.image} alt="Gift Card" className="w-full aspect-video object-cover rounded mb-4" />
+          {displayImage ? (
+            <img src={displayImage} alt="Gift Card" className="w-full aspect-video object-cover rounded mb-4 transition-opacity" />
           ) : (
             <div className="w-full aspect-video bg-gradient-to-br from-primary/30 to-primary/10 rounded mb-4 flex items-center justify-center">
               <Gift className="w-16 h-16 text-primary/60" />

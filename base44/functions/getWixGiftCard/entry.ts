@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
       id: v.id,
       price: parseFloat(v.price?.amount || 0),
       value: parseFloat(v.value?.amount || v.price?.amount || 0),
+      image: v.image?.url || null,
     })).filter(v => v.value > 0);
 
     return Response.json({
