@@ -3,17 +3,37 @@ import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
 import { motion } from 'framer-motion';
-import { getStatusClass, formatDate } from '../lib/wixUtils';
+import { getStatusClass } from '../lib/wixUtils';
 
 export default function Missions() {
   const [missions, setMissions] = useState([]);
+  const [crew, setCrew] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions' })
-      .then(res => setMissions(res.data.items || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions' }),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers' }),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Planets' })
+    ]).then(([missionsRes, crewRes, planetsRes]) => {
+      const missionsData = missionsRes.data.items || [];
+      const allCrew = crewRes.data.items || [];
+      const allPlanets = planetsRes.data.items || [];
+      
+      const enrichedMissions = missionsData.map(m => ({
+        ...m,
+        crewMembers: m.crewIds 
+          ? allCrew.filter(c => m.crewIds.includes(c._id))
+          : m.crew
+            ? allCrew.filter(c => m.crew.includes(c._id))
+            : [],
+        planetData: allPlanets.find(p => (p.name || p.title || '').toLowerCase() === (m.planet || '').toLowerCase())
+      }));
+      
+      setMissions(enrichedMissions);
+      setCrew(allCrew);
+    }).catch(() => {})
+    .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -31,30 +51,82 @@ export default function Missions() {
         ) : missions.length === 0 ? (
           <p className="text-center text-muted-foreground py-32">No missions found.</p>
         ) : (
-          <div className="space-y-4 max-w-3xl">
+          <div className="space-y-4">
             {missions.map((mission, i) => {
               const name = mission.title;
               const slug = mission.slug;
               const destName = mission.planet;
+              const planetImage = mission.planetData?.mainImage || mission.planetData?.photo || mission.planetData?.image;
+              const statusColors = {
+                'in progress': 'border-l-primary',
+                'launching soon': 'border-l-[#FFD700]',
+                'planned': 'border-l-[#9370DB]',
+                'planning': 'border-l-[#9370DB]',
+                'completed': 'border-l-[#4ADE80]'
+              };
+              const borderColor = statusColors[mission.status?.toLowerCase()] || 'border-l-primary';
+              
               return (
                 <motion.div key={mission._id || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
                   <Link to={`/missions/${slug}`}
-                    className="flex gap-5 items-start bg-card border border-border hover:border-primary/40 transition-all p-6 group">
-                    <div className="w-16 h-16 bg-muted rounded flex-shrink-0 flex items-center justify-center text-2xl">🚀</div>
+                    className={`flex gap-6 bg-card border border-border ${borderColor} border-l-4 hover:border-border-primary/40 transition-all p-6 group`}>
+                    {/* Planet Image */}
+                    <div className="w-20 h-20 bg-muted rounded-full flex-shrink-0 flex items-center justify-center text-3xl overflow-hidden">
+                      {planetImage ? (
+                        <img src={planetImage} alt={destName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>🪐</span>
+                      )}
+                    </div>
+                    
+                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap mb-1">
-                        <h2 className="font-display text-xl tracking-wider text-foreground group-hover:text-primary transition-colors uppercase">
+                      <div className="flex items-center gap-3 flex-wrap mb-2">
+                        <h2 className="font-display text-lg md:text-xl tracking-wider text-primary uppercase group-hover:text-primary/80 transition-colors">
                           {name}
                         </h2>
                         {mission.status && (
-                          <span className={`text-xs font-mono px-2 py-0.5 border rounded-full ${getStatusClass(mission.status)}`}>{mission.status}</span>
+                          <span className={`text-xs font-mono px-2.5 py-1 border rounded-full ${getStatusClass(mission.status)}`}>
+                            {mission.status.toUpperCase()}
+                          </span>
                         )}
                       </div>
-                      {destName && <p className="text-primary text-xs font-mono mb-2">→ {destName}</p>}
-                      <div className="flex items-center justify-between">
-                        <div />
+                      
+                      {destName && (
+                        <p className="text-primary/70 text-xs font-mono mb-2">→ {destName}</p>
+                      )}
+                      
+                      {mission.description && (
+                        <p className="text-foreground/70 text-sm mb-4 line-clamp-2">{mission.description}</p>
+                      )}
+                      
+                      {/* Crew & Launch */}
+                      <div className="flex items-center justify-between flex-wrap gap-4 pt-2">
+                        {mission.crewMembers?.length > 0 && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-muted-foreground font-mono uppercase">Crew</span>
+                            <div className="flex gap-1">
+                              {mission.crewMembers.map((c, ci) => {
+                                const cImage = c.photo || c.image || c.mainImage;
+                                return (
+                                  <div key={ci} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-sm overflow-hidden">
+                                    {cImage ? (
+                                      <img src={cImage} alt={c.title || c.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span>🐱</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
                         {mission.launchDate && (
-                          <span className="text-xs font-mono text-primary">{mission.launchDate?.split('T')[0] || mission.launchDate}</span>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-muted-foreground font-mono uppercase">Launch</span>
+                            <span className="text-sm font-mono text-primary">{mission.launchDate?.split('T')[0]}</span>
+                          </div>
                         )}
                       </div>
                     </div>
