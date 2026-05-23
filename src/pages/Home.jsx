@@ -23,30 +23,33 @@ export default function Home() {
       <Header />
 
       {/* Hero */}
-      <section className="relative h-screen flex items-end pb-16 overflow-hidden">
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?w=1800&q=80"
-            alt="Hero"
+            src="https://images.unsplash.com/photo-1446776709462-d6b525b1516d?w=1800&q=80"
+            alt="Space"
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
+          <div className="absolute inset-0 bg-black/60" />
         </div>
-        <div className="relative z-10 px-[6vw] md:px-[8vw] text-background w-full">
+        <div className="relative z-10 px-[6vw] text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
-            <p className="font-mono text-xs tracking-widest uppercase mb-4 text-background/70">Handcrafted Ceramics</p>
-            <h1 className="font-display text-6xl md:text-8xl lg:text-[110px] tracking-tight leading-none mb-6">
-              Folio<br /><em>Ceramics</em>
+            <p className="font-mono text-xs tracking-widest uppercase mb-6 text-primary">BREAKING: Earth's litter box declared full...</p>
+            <h1 className="font-display text-7xl md:text-[120px] lg:text-[160px] tracking-widest leading-none mb-6 text-primary uppercase">
+              Cats in Space
             </h1>
-            <p className="font-body text-background/80 text-base md:text-lg max-w-md mb-10">
-              Artisan ceramic pieces crafted with intention. Each creation is unique and functional.
+            <p className="font-display text-xl md:text-3xl text-foreground/90 italic mb-4 tracking-wide">
+              Earth's litter box is full. Time to find a new planet.
+            </p>
+            <p className="font-body text-foreground/60 text-base md:text-lg max-w-md mx-auto mb-10">
+              A brave crew of cats has launched into the cosmos...
             </p>
             <button
               onClick={() => document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })}
-              className="inline-flex items-center gap-3 text-background/80 hover:text-background text-sm transition-colors font-mono tracking-wider group"
+              className="inline-flex items-center gap-3 bg-primary text-primary-foreground px-8 py-3 font-display text-lg tracking-widest uppercase hover:bg-primary/80 transition-colors"
             >
-              Explore the Collection
-              <ArrowDown className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
+              Explore the Shop
+              <ArrowDown className="w-4 h-4" />
             </button>
           </motion.div>
         </div>
@@ -56,11 +59,11 @@ export default function Home() {
       <section id="collection" className="px-[6vw] md:px-[8vw] py-20 md:py-28">
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="flex items-baseline justify-between mb-14">
           <div>
-            <p className="font-mono text-xs tracking-widest uppercase text-muted-foreground mb-2">Browse</p>
-            <h2 className="font-display text-4xl md:text-5xl tracking-tight">Ceramic Pieces</h2>
+            <p className="font-mono text-xs tracking-widest uppercase text-primary mb-2">★ Space Gear ★</p>
+            <h2 className="font-display text-4xl md:text-6xl tracking-widest text-foreground uppercase">Mission Supplies</h2>
           </div>
           {products.length > 0 && (
-            <span className="font-mono text-sm text-muted-foreground">{products.length} pieces</span>
+            <span className="font-mono text-sm text-muted-foreground">{products.length} items</span>
           )}
         </motion.div>
 
@@ -80,9 +83,9 @@ export default function Home() {
       </section>
 
       {/* Footer strip */}
-      <footer className="border-t border-border/50 px-[6vw] md:px-[8vw] py-10 flex flex-col md:flex-row items-center justify-between gap-4">
-        <span className="font-display text-xl tracking-tight">Folio Ceramics</span>
-        <p className="text-muted-foreground text-xs font-mono">© 2025 Handcrafted with care</p>
+      <footer className="border-t border-border/30 px-[6vw] md:px-[8vw] py-10 flex flex-col md:flex-row items-center justify-between gap-4">
+        <span className="font-display text-2xl tracking-widest text-primary uppercase">Cats in Space</span>
+        <p className="text-muted-foreground text-xs font-mono">© 2026 — One small step for cat, one giant leap for catkind.</p>
       </footer>
     </div>
   );
