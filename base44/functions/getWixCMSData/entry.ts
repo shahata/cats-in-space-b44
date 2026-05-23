@@ -32,18 +32,32 @@ function processItem(item) {
   const processed = { _id: item.id, ...d };
   for (const [key, val] of Object.entries(processed)) {
     if (!val) continue;
+    // Handle string image URLs
     if (typeof val === 'string' && val.startsWith('wix:image')) {
       processed[key] = processWixImage(val);
-    } else if (val && typeof val === 'object' && !Array.isArray(val)) {
-      if (val.url && typeof val.url === 'string' && val.url.startsWith('wix:image')) {
-        processed[key] = processWixImage(val.url);
-      } else if (val.src?.url && typeof val.src.url === 'string' && val.src.url.startsWith('wix:image')) {
-        processed[key] = processWixImage(val.src.url);
+    } 
+    // Handle object with image URL (e.g., { url: 'wix:image://...' })
+    else if (val && typeof val === 'object' && !Array.isArray(val)) {
+      // Check if this is a referenced item wrapper (has _id/id and data)
+      if (val.data && (val._id || val.id)) {
+        processed[key] = processItem(val);
+      } 
+      // Check for image URL in url/src.url properties
+      else {
+        if (val.url && typeof val.url === 'string' && val.url.startsWith('wix:image')) {
+          processed[key] = processWixImage(val.url);
+        } else if (val.src?.url && typeof val.src.url === 'string' && val.src.url.startsWith('wix:image')) {
+          processed[key] = processWixImage(val.src.url);
+        }
       }
-    } else if (Array.isArray(val)) {
-      // handle array of references that might have been resolved
+    } 
+    // Handle arrays (including referenced items arrays)
+    else if (Array.isArray(val)) {
       processed[key] = val.map(v => {
-        if (v && typeof v === 'object' && v.data) return processItem(v);
+        // If it's a referenced item wrapper, process it recursively
+        if (v && typeof v === 'object' && v.data && (v._id || v.id)) {
+          return processItem(v);
+        }
         return v;
       });
     }
