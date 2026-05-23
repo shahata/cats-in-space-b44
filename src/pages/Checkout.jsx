@@ -41,8 +41,16 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 font-body">
-      <motion.main initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-[6vw] md:px-[8vw] pt-12 pb-20 max-w-xl mx-auto">
+    <div className="min-h-screen bg-background font-body relative">
+      <div className="absolute inset-0 z-0">
+        <img
+          src="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1800&q=80"
+          alt=""
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-background/85" />
+      </div>
+      <motion.main initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-[6vw] md:px-[8vw] pt-12 pb-20 max-w-xl mx-auto relative z-10">
         <Link to="/cart" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-12 transition-colors">
           <ArrowLeft className="w-4 h-4" /> Back to bag
         </Link>

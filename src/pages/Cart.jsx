@@ -17,9 +17,17 @@ export default function Cart() {
   }
 
   return (
-    <div className="min-h-screen bg-background font-body">
+    <div className="min-h-screen bg-background font-body relative">
+      <div className="absolute inset-0 z-0">
+        <img
+          src="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1800&q=80"
+          alt=""
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-background/80" />
+      </div>
       <Header />
-      <main className="px-[6vw] md:px-[8vw] pt-28 md:pt-36 pb-20 max-w-3xl mx-auto">
+      <main className="px-[6vw] md:px-[8vw] pt-28 md:pt-36 pb-20 max-w-3xl mx-auto relative z-10">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-10 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Continue shopping

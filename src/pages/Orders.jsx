@@ -45,9 +45,17 @@ export default function Orders() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background font-body">
+    <div className="min-h-screen bg-background font-body relative">
+      <div className="absolute inset-0 z-0">
+        <img
+          src="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1800&q=80"
+          alt=""
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-background/85" />
+      </div>
       <Header />
-      <main className="pt-24 md:pt-28 pb-20 px-[6vw] md:px-[8vw] max-w-4xl mx-auto">
+      <main className="pt-24 md:pt-28 pb-20 px-[6vw] md:px-[8vw] max-w-4xl mx-auto relative z-10">
         <div className="mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm transition-colors mb-6">
             <ArrowLeft className="w-4 h-4" /> Back to Shop
