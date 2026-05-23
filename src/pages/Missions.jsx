@@ -104,37 +104,12 @@ export default function Missions() {
                         <p className="text-foreground/70 text-sm mb-4 line-clamp-2">{mission.description}</p>
                       )}
                       
-                      {/* Crew & Launch */}
-                      <div className="flex items-center justify-between flex-wrap gap-4 pt-2">
-                        {mission.crewMembers?.length > 0 && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs text-muted-foreground font-mono uppercase">Crew</span>
-                            <div className="flex gap-1 flex-wrap">
-                              {mission.crewMembers.map((c, ci) => {
-                                const cImage = c.photo || c.image || c.mainImage;
-                                const cName = c.title || c.name || 'Crew';
-                                console.log(`Crew ${ci}:`, c);
-                                return (
-                                  <div key={ci} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-sm overflow-hidden" title={cName}>
-                                    {cImage ? (
-                                      <img src={cImage} alt={cName} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <span>🐱</span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {mission.launchDate && (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs text-muted-foreground font-mono uppercase">Launch</span>
-                            <span className="text-sm font-mono text-primary">{mission.launchDate?.split('T')[0]}</span>
-                          </div>
-                        )}
-                      </div>
+                      {mission.launchDate && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground font-mono uppercase">Launch</span>
+                          <span className="text-sm font-mono text-primary">{mission.launchDate?.split('T')[0]}</span>
+                        </div>
+                      )}
                     </div>
                   </Link>
                 </motion.div>
