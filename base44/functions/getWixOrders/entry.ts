@@ -1,4 +1,5 @@
 import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { orders } from 'npm:@wix/ecom@1.0.2074';
 
 function processOrder(o) {
   if (!o) return null;
@@ -6,7 +7,7 @@ function processOrder(o) {
     id: o._id || o.id,
     number: o.number || '',
     status: o.fulfillmentStatus || o.status,
-    total: parseFloat(o.totals?.total || 0),
+    total: parseFloat(o.priceSummary?.total?.amount || o.totals?.total || 0),
     currency: o.currency || 'USD',
     lineItems: (o.lineItems || []).map(li => ({
       catalogItemId: li.catalogReference?.catalogItemId || li.productId,
@@ -16,10 +17,10 @@ function processOrder(o) {
     })),
     buyerInfo: {
       email: o.buyerInfo?.email,
-      firstName: o.buyerInfo?.firstName,
-      lastName: o.buyerInfo?.lastName,
+      firstName: o.billingInfo?.contactDetails?.firstName,
+      lastName: o.billingInfo?.contactDetails?.lastName,
     },
-    createdDate: o.dateCreated,
+    createdDate: o._createdDate || o.dateCreated,
   };
 }
 
@@ -32,34 +33,26 @@ Deno.serve(async (req) => {
     const { orderId, limit = 20 } = body;
 
     const wix = createClient({
+      modules: { orders },
       auth: OAuthStrategy({ clientId }),
     });
 
     if (orderId) {
-      const order = await wix
-        .fetch(`https://www.wixapis.com/ecom/v1/orders/${orderId}`, { method: 'GET' })
-        .then(r => r.json())
-        .catch(e => {
-          console.error('[getWixOrders] get:', e.message);
-          return null;
-        });
+      const order = await wix.orders.getOrder(orderId).catch(e => {
+        console.error('[getWixOrders] get:', e.message);
+        return null;
+      });
       return Response.json({ order: processOrder(order), orders: [] });
     }
 
-    const res = await wix
-      .fetch('https://www.wixapis.com/ecom/v1/orders/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          limit,
-          sort: { fieldName: 'dateCreated', direction: 'DESC' },
-        }),
-      })
-      .then(r => r.json())
-      .catch(e => {
-        console.error('[getWixOrders] search:', e.message);
-        return { orders: [] };
-      });
+    const res = await wix.orders.searchOrders({
+      search: {
+        cursorPaging: { limit },
+      },
+    }).catch(e => {
+      console.error('[getWixOrders] search:', e.message);
+      return { orders: [] };
+    });
 
     const list = (res.orders || []).map(processOrder).filter(Boolean);
     return Response.json({ orders: list });

@@ -1,4 +1,5 @@
 import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { checkout } from 'npm:@wix/ecom@1.0.2074';
 
 Deno.serve(async (req) => {
   try {
@@ -11,58 +12,43 @@ Deno.serve(async (req) => {
     if (!amount || amount <= 0) return Response.json({ error: 'Invalid donation amount' }, { status: 400 });
 
     const wix = createClient({
+      modules: { checkout },
       auth: OAuthStrategy({ clientId }),
     });
 
-    const checkoutUrl = 'https://www.wixapis.com/ecom/v1/checkouts';
-
-    const checkoutPayload = {
-      lineItems: [
+    const checkoutInfo = {
+      customLineItems: [
         {
-          catalogReference: {
-            catalogItemId: 'donation',
-            appId: '1380b703-ce81-ff05-7226-cd87d7d4b591',
-          },
+          itemType: { preset: 'PHYSICAL' },
+          price: amount.toString(),
+          productName: { original: 'Donation' },
           quantity: 1,
-          price: { amount: amount.toString() },
         },
       ],
     };
     if (email) {
-      checkoutPayload.billingContact = { email, firstName, lastName };
+      checkoutInfo.buyerInfo = { email };
+      checkoutInfo.billingInfo = { contactDetails: { firstName, lastName } };
     }
 
-    const checkoutRes = await wix
-      .fetch(checkoutUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(checkoutPayload),
-      })
-      .then(r => r.json())
-      .catch(e => {
-        console.error('[createWixDonationCheckout] checkout:', e.message);
-        return null;
-      });
+    const checkoutRes = await wix.checkout.createCheckout({ ...checkoutInfo, channelType: 'WEB' }).catch(e => {
+      console.error('[createWixDonationCheckout] create:', e?.message);
+      return null;
+    });
 
-    if (!checkoutRes?.id) return Response.json({ error: 'Checkout creation failed' }, { status: 500 });
+    const checkoutId = checkoutRes?._id || checkoutRes?.id;
+    if (!checkoutId) return Response.json({ error: 'Checkout creation failed' }, { status: 500 });
 
-    const sessionRes = await wix
-      .fetch(`${checkoutUrl}/${checkoutRes.id}/checkout-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkoutId: checkoutRes.id }),
-      })
-      .then(r => r.json())
-      .catch(e => {
-        console.error('[createWixDonationCheckout] session:', e.message);
-        return null;
-      });
+    const urlRes = await wix.checkout.getCheckoutUrl(checkoutId).catch(e => {
+      console.error('[createWixDonationCheckout] url:', e?.message);
+      return null;
+    });
 
-    if (!sessionRes?.redirectUrl) return Response.json({ error: 'Session creation failed' }, { status: 500 });
+    if (!urlRes?.checkoutUrl) return Response.json({ error: 'Session creation failed' }, { status: 500 });
 
     return Response.json({
-      checkoutId: checkoutRes.id,
-      sessionUrl: sessionRes.redirectUrl,
+      checkoutId,
+      sessionUrl: urlRes.checkoutUrl,
     });
   } catch (err) {
     console.error('[createWixDonationCheckout] Exception:', err.message);
