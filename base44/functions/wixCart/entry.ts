@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
 
     // REMOVE LINE ITEM
     if (action === "removeItem") {
-      const res = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cartId}/line-items/remove`, {
+      const res = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cartId}/remove-line-items`, {
         method: "POST",
         headers,
         body: JSON.stringify({ lineItemIds: [lineItemId] }),
@@ -136,13 +136,19 @@ Deno.serve(async (req) => {
 
     // UPDATE LINE ITEM QUANTITY
     if (action === "updateItem") {
-      const res = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cartId}`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({
-          cart: { lineItems: [{ id: lineItemId, quantity }] },
-          mask: { paths: ["lineItems.quantity"] },
-        }),
+      if (!quantity || quantity <= 0) {
+        // Treat as remove
+        const res = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cartId}/remove-line-items`, {
+          method: "POST", headers,
+          body: JSON.stringify({ lineItemIds: [lineItemId] }),
+        });
+        const data = await safeJson(res);
+        if (!res.ok) return Response.json({ error: data }, { status: res.status });
+        return Response.json({ cart: data.cart, visitorToken: newRefreshToken });
+      }
+      const res = await fetch(`https://www.wixapis.com/ecom/v1/carts/${cartId}/update-line-items-quantity`, {
+        method: "POST", headers,
+        body: JSON.stringify({ lineItems: [{ id: lineItemId, quantity }] }),
       });
       const data = await safeJson(res);
       if (!res.ok) return Response.json({ error: data }, { status: res.status });

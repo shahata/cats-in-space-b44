@@ -78,12 +78,11 @@ export default function useWixCart() {
   }, [invoke]);
 
   const updateItem = useCallback(async (lineItemId, quantity) => {
-    if (quantity <= 0) return removeItem(lineItemId);
     setActionLoading(true);
-    await invoke({ action: 'updateItem', lineItemId, quantity });
+    await invoke({ action: 'updateItem', lineItemId, quantity: Math.max(0, quantity) });
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);
-  }, [invoke, removeItem]);
+  }, [invoke]);
 
   const createCheckout = useCallback(async () => {
     const res = await invoke({ action: 'createCheckout' });
