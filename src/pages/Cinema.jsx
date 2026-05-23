@@ -39,17 +39,11 @@ export default function Cinema() {
   const today = new Date().toISOString().split('T')[0];
 
   // Extract unique dates from events
-  const availableDates = [...new Set(events.map(e => {
-    const date = e.startDate || e.schedule?.startDate;
-    return date?.split('T')[0];
-  }).filter(Boolean))];
+  const availableDates = [...new Set(events.map(e => e.startDate).filter(Boolean))];
 
   // Extract times for selected date
-  const eventsOnDate = events.filter(e => {
-    const date = e.startDate || e.schedule?.startDate;
-    return date?.startsWith(selectedDate);
-  });
-  const availableTimes = [...new Set(eventsOnDate.map(e => e.startTime || e.schedule?.startTime))];
+  const eventsOnDate = events.filter(e => e.startDate === selectedDate);
+  const availableTimes = [...new Set(eventsOnDate.map(e => e.startTime))];
 
   return (
     <div className="min-h-screen bg-background font-body">
