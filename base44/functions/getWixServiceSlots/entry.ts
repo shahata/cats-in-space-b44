@@ -36,32 +36,44 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // Get available slots for a specific date
-    const res = await fetch('https://www.wixapis.com/bookings/v1/availability/slots', {
+    // Get available slots using Wix Schedule Slots API
+    const res = await fetch('https://www.wixapis.com/bookings/v1/slots', {
       method: 'POST',
       headers,
       body: JSON.stringify({
         serviceId,
-        date: {
-          year: parseInt(date.split('-')[0]),
-          month: parseInt(date.split('-')[1]),
-          day: parseInt(date.split('-')[2]),
-        },
+        startDate: date,
+        endDate: date,
       }),
     });
 
     const data = await safeJson(res);
+    
+    console.log('[getWixServiceSlots] Response status:', res.status);
+    console.log('[getWixServiceSlots] Raw response:', JSON.stringify(data).substring(0, 1000));
+    
     if (!res.ok) {
-      console.error('[getWixServiceSlots] Error:', JSON.stringify(data));
+      console.error('[getWixServiceSlots] API Error:', res.status, JSON.stringify(data).substring(0, 200));
       return Response.json({ slots: [] });
     }
 
-    // Extract time slots
-    const slots = (data.timeSlots || data.slots || []).map(slot => ({
-      startTime: slot.startTime?.localTime || slot.startTime,
-      endTime: slot.endTime?.localTime || slot.endTime,
-      available: slot.available !== false,
-    }));
+    // Extract time slots - handle various response structures
+    let rawSlots = [];
+    if (data.slots && Array.isArray(data.slots)) {
+      rawSlots = data.slots;
+    } else if (data.timeSlots && Array.isArray(data.timeSlots)) {
+      rawSlots = data.timeSlots;
+    } else if (data.availabilityEntries && Array.isArray(data.availabilityEntries)) {
+      rawSlots = data.availabilityEntries;
+    }
+
+    const slots = rawSlots
+      .filter(slot => slot.available !== false)
+      .map(slot => ({
+        startTime: slot.startTime?.localTime || slot.startTime || slot.time,
+        endTime: slot.endTime?.localTime || slot.endTime,
+        available: slot.available !== false,
+      }));
 
     return Response.json({ slots });
 

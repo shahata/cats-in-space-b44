@@ -18,15 +18,31 @@ async function getAnonToken(clientId) {
 
 function processService(service) {
   if (!service) return null;
+  
+  // Extract image URL - v1 API uses different structure
+  let imageUrl = null;
+  if (service.image) {
+    imageUrl = typeof service.image === 'string' 
+      ? service.image 
+      : service.image.url || service.image.imageUrl || service.image.image;
+  }
+  if (!imageUrl && service.mainImage) {
+    imageUrl = service.mainImage.url || service.mainImage.imageUrl;
+  }
+  // Fallback to any url field in the service
+  if (!imageUrl && service.url) {
+    imageUrl = service.url;
+  }
+  
   return {
     id: service._id || service.id,
-    name: service.name || service.title,
-    description: service.description,
+    name: service.name || service.title || 'Untitled Service',
+    description: service.description || '',
     price: service.price?.value || service.price?.amount || 0,
     currency: service.price?.currency || 'USD',
     duration: service.duration || service.serviceDuration?.minutes || 60,
-    image: service.image?.url || service.mainImage?.url || service.image,
-    category: service.category || service.serviceType,
+    image: imageUrl,
+    category: service.category?.name || service.category || service.serviceType || 'General',
   };
 }
 
@@ -46,21 +62,31 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // Try Wix Services API v2 - uses POST query endpoint
-    let url = 'https://www.wixapis.com/_api/bookings/v2/services/query';
-    const queryBody = {
-      filter: serviceId ? { _id: serviceId } : {},
-      sort: [{ fieldName: 'name' }],
-      query: {
-        filter: serviceId ? { _id: serviceId } : {},
-        sort: [{ fieldName: 'name' }]
-      }
-    };
+    // Use Wix Bookings API - try v2 first, fallback to v1
+    let url, requestBody, method;
+    
+    if (serviceId) {
+      // Single service - use GET
+      url = `https://www.wixapis.com/bookings/v2/services/${serviceId}`;
+      method = 'GET';
+    } else {
+      // List services - use POST query
+      url = 'https://www.wixapis.com/bookings/v2/services/query';
+      method = 'POST';
+      requestBody = {
+        filter: {},
+        sort: [{ fieldName: 'name' }],
+        query: {
+          filter: {},
+          sort: [{ fieldName: 'name' }]
+        }
+      };
+    }
 
     const res = await fetch(url, { 
-      method: 'POST', 
+      method, 
       headers,
-      body: JSON.stringify(queryBody)
+      ...(requestBody && { body: JSON.stringify(requestBody) })
     });
     const data = await safeJson(res);
 
@@ -69,13 +95,15 @@ Deno.serve(async (req) => {
       return Response.json({ services: [], service: null });
     }
 
-    // Handle v2 query response structure
+    // Handle v2 response structure
     let services = [];
     if (data.items && Array.isArray(data.items)) {
       services = data.items;
     } else if (data.services && Array.isArray(data.services)) {
       services = data.services;
     } else if (data.service) {
+      services = [data.service];
+    } else if (data.service && typeof data.service === 'object') {
       services = [data.service];
     }
     const processed = services.map(processService).filter(s => s);
