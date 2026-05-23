@@ -1,72 +1,70 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
 
-async function getWixAccessToken(clientId, clientSecret) {
-  const res = await fetch('https://www.wixapis.com/oauth2/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId, clientSecret, grantType: 'client_credentials' }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error('Failed to get Wix token: ' + JSON.stringify(data));
-  return data.access_token;
+function processOrder(o) {
+  if (!o) return null;
+  return {
+    id: o._id || o.id,
+    number: o.number || '',
+    status: o.fulfillmentStatus || o.status,
+    total: parseFloat(o.totals?.total || 0),
+    currency: o.currency || 'USD',
+    lineItems: (o.lineItems || []).map(li => ({
+      catalogItemId: li.catalogReference?.catalogItemId || li.productId,
+      name: li.productName?.original || li.name,
+      quantity: li.quantity,
+      price: parseFloat(li.price?.amount || 0),
+    })),
+    buyerInfo: {
+      email: o.buyerInfo?.email,
+      firstName: o.buyerInfo?.firstName,
+      lastName: o.buyerInfo?.lastName,
+    },
+    createdDate: o.dateCreated,
+  };
 }
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    const userEmail = user.email.toLowerCase();
-
     const clientId = Deno.env.get('WIX_CLIENT_ID');
-    const clientSecret = Deno.env.get('WIX_CLIENT_SECRET');
-    const instanceId = Deno.env.get('WIX_INSTANCE_ID');
+    if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
-    if (!clientId || !clientSecret || !instanceId) {
-      return Response.json({ error: 'Missing Wix credentials' }, { status: 500 });
-    }
+    const body = await req.json().catch(() => ({}));
+    const { orderId, limit = 20 } = body;
 
-    const accessToken = await getWixAccessToken(clientId, clientSecret);
-
-    const searchRes = await fetch('https://www.wixapis.com/ecom/v1/orders/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'wix-site-id': instanceId,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        filter: { 'buyerInfo.email': userEmail },
-        sort: [{ fieldName: '_createdDate', order: 'DESC' }],
-        cursorPaging: { limit: 50 },
-      }),
+    const wix = createClient({
+      auth: OAuthStrategy({ clientId }),
     });
 
-    const searchData = await searchRes.json();
-
-    if (!searchRes.ok) {
-      return Response.json({ error: searchData }, { status: searchRes.status });
+    if (orderId) {
+      const order = await wix
+        .fetch(`https://www.wixapis.com/ecom/v1/orders/${orderId}`, { method: 'GET' })
+        .then(r => r.json())
+        .catch(e => {
+          console.error('[getWixOrders] get:', e.message);
+          return null;
+        });
+      return Response.json({ order: processOrder(order), orders: [] });
     }
 
-    const orders = (searchData.orders || [])
-      .filter(o => (o.buyerInfo?.email || '').toLowerCase() === userEmail)
-      .map(o => ({
-      id: o._id,
-      number: o.number,
-      createdDate: o._createdDate,
-      status: o.fulfillmentStatus || o.status,
-      paymentStatus: o.paymentStatus,
-      total: o.priceSummary?.total?.formattedAmount || o.totals?.total,
-      lineItems: (o.lineItems || []).map(li => ({
-        name: li.productName?.translated || li.productName?.original || li.name,
-        quantity: li.quantity,
-        price: li.price?.formattedAmount || li.price?.amount,
-        image: li.image?.url,
-      })),
-    }));
+    const res = await wix
+      .fetch('https://www.wixapis.com/ecom/v1/orders/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          limit,
+          sort: { fieldName: 'dateCreated', direction: 'DESC' },
+        }),
+      })
+      .then(r => r.json())
+      .catch(e => {
+        console.error('[getWixOrders] search:', e.message);
+        return { orders: [] };
+      });
 
-    return Response.json({ orders });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    const list = (res.orders || []).map(processOrder).filter(Boolean);
+    return Response.json({ orders: list });
+  } catch (err) {
+    console.error('[getWixOrders] Exception:', err.message);
+    return Response.json({ error: err.message, orders: [] }, { status: 500 });
   }
 });

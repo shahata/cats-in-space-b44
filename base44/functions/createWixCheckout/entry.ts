@@ -1,123 +1,66 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-
-async function getWixAccessToken(clientId) {
-  const tokenResponse = await fetch("https://www.wixapis.com/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      clientId: clientId,
-      grantType: "anonymous",
-    }),
-  });
-
-  const tokenData = await tokenResponse.json();
-  if (!tokenResponse.ok) {
-    throw new Error("Failed to get Wix access token: " + JSON.stringify(tokenData));
-  }
-  return tokenData.access_token;
-}
+import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const clientId = Deno.env.get('WIX_CLIENT_ID');
+    if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const body = await req.json().catch(() => ({}));
+    const { lineItems = [], email = '', firstName = '', lastName = '' } = body;
 
-    const { items, email, customerName, address } = await req.json();
-
-    if (!items || items.length === 0) {
-      return Response.json({ error: "No items in checkout" }, { status: 400 });
-    }
-
-    const clientId = Deno.env.get("WIX_CLIENT_ID");
-    const instanceId = Deno.env.get("WIX_INSTANCE_ID");
-
-    if (!clientId || !instanceId) {
-      return Response.json({ error: "Missing Wix credentials" }, { status: 500 });
-    }
-
-    const accessToken = await getWixAccessToken(clientId);
-
-    // Create checkout
-    const checkoutResponse = await fetch("https://www.wixapis.com/ecom/v1/checkouts", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "wix-site-id": instanceId,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        channelType: "WEB",
-        lineItems: items.map(item => ({
-          catalogReference: {
-            appId: "1380b703-ce81-ff05-f115-39571d94dfcd",
-            catalogItemId: item.wixId,
-          },
-          quantity: item.quantity,
-        })),
-        checkoutInfo: {
-          buyerInfo: {
-            email: email,
-          },
-          shippingInfo: {
-            shippingDestination: {
-              address: {
-                country: "US",
-                addressLine: address,
-              },
-              contactDetails: {
-                firstName: customerName.split(" ")[0],
-                lastName: customerName.split(" ").slice(1).join(" "),
-              },
-            },
-          },
-        },
-      }),
+    const wix = createClient({
+      auth: OAuthStrategy({ clientId }),
     });
 
-    const checkoutData = await checkoutResponse.json();
+    const checkoutUrl = 'https://www.wixapis.com/ecom/v1/checkouts';
 
-    if (!checkoutResponse.ok) {
-      return Response.json({ error: checkoutData }, { status: checkoutResponse.status });
-    }
-
-    const checkoutId = checkoutData.checkout?.id;
-
-    // Hand off to Wix's hosted checkout via the Create Redirect Session API.
-    let checkoutUrl = checkoutData.checkout?.checkoutUrl;
-    try {
-      const sessionRes = await fetch('https://www.wixapis.com/_api/redirects-api/v1/redirect-session', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'wix-site-id': instanceId,
-          'Content-Type': 'application/json',
+    const checkoutPayload = {
+      lineItems: lineItems.map(li => ({
+        catalogReference: {
+          catalogItemId: li.catalogItemId || li.productId,
+          appId: '1380b703-ce81-ff05-7226-cd87d7d4b591',
         },
-        body: JSON.stringify({
-          redirectSession: {
-            ecomCheckout: { checkoutId },
-            callbacks: { postFlowUrl: req.headers.get('referer') || '' },
-          },
-        }),
-      });
-      const sessionData = await sessionRes.json().catch(() => ({}));
-      if (sessionRes.ok && sessionData.redirectSession?.fullUrl) {
-        checkoutUrl = sessionData.redirectSession.fullUrl;
-      } else {
-        console.error('[createWixCheckout] Redirect session failed:', JSON.stringify(sessionData));
-      }
-    } catch (e) {
-      console.error('[createWixCheckout] Redirect session error:', e.message);
+        quantity: li.quantity || 1,
+      })),
+    };
+    if (email) {
+      checkoutPayload.billingContact = { email, firstName, lastName };
     }
+
+    const checkoutRes = await wix
+      .fetch(checkoutUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(checkoutPayload),
+      })
+      .then(r => r.json())
+      .catch(e => {
+        console.error('[createWixCheckout] checkout:', e.message);
+        return null;
+      });
+
+    if (!checkoutRes?.id) return Response.json({ error: 'Checkout creation failed' }, { status: 500 });
+
+    const sessionRes = await wix
+      .fetch(`${checkoutUrl}/${checkoutRes.id}/checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkoutId: checkoutRes.id }),
+      })
+      .then(r => r.json())
+      .catch(e => {
+        console.error('[createWixCheckout] session:', e.message);
+        return null;
+      });
+
+    if (!sessionRes?.redirectUrl) return Response.json({ error: 'Session creation failed' }, { status: 500 });
 
     return Response.json({
-      checkoutId,
-      checkoutUrl,
+      checkoutId: checkoutRes.id,
+      sessionUrl: sessionRes.redirectUrl,
     });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    console.error('[createWixCheckout] Exception:', err.message);
+    return Response.json({ error: err.message }, { status: 500 });
   }
 });
