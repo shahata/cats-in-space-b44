@@ -19,19 +19,29 @@ async function getAnonToken(clientId) {
 function processService(service) {
   if (!service) return null;
   
-  // Extract image URL - v1 API uses different structure
+  // Extract image URL from media.mainMedia.image (Wix Bookings v2 structure)
   let imageUrl = null;
-  if (service.image) {
+  if (service.media?.mainMedia) {
+    const mediaItem = service.media.mainMedia;
+    // Image can be an object with id/url or a string
+    if (typeof mediaItem.image === 'string') {
+      const imageId = mediaItem.image;
+      const cleanId = imageId.replace('wix:image://v1/', '').split('/')[0];
+      imageUrl = `https://static.wixstatic.com/media/${cleanId}`;
+    } else if (mediaItem.image?.id) {
+      imageUrl = `https://static.wixstatic.com/media/${mediaItem.image.id}`;
+    } else if (mediaItem.image?.url) {
+      imageUrl = mediaItem.image.url;
+    }
+  }
+  // Fallback to legacy image fields
+  if (!imageUrl && service.image) {
     imageUrl = typeof service.image === 'string' 
       ? service.image 
-      : service.image.url || service.image.imageUrl || service.image.image;
+      : service.image.url || service.image.imageUrl;
   }
-  if (!imageUrl && service.mainImage) {
-    imageUrl = service.mainImage.url || service.mainImage.imageUrl;
-  }
-  // Fallback to any url field in the service
-  if (!imageUrl && service.url) {
-    imageUrl = service.url;
+  if (!imageUrl && service.mainImage?.url) {
+    imageUrl = service.mainImage.url;
   }
   
   return {
