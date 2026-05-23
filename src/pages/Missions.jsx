@@ -37,8 +37,8 @@ export default function Missions() {
             {missions.map((mission, i) => {
               const name = mission.title;
               const slug = mission.slug;
-              const destName = mission.planet;
-              const planetImage = mission.planet?.image || mission.planet?.photo || mission.planet?.mainImage;
+              const destName = mission.planet?.name || mission.planet?.title || mission.planet;
+              const planetImage = mission.planet?.mainImage || mission.planet?.photo || mission.planet?.image;
               const statusColors = {
                 'in progress': 'border-l-primary',
                 'launching soon': 'border-l-[#FFD700]',
