@@ -59,7 +59,7 @@ export default function ProductCard({ product, onAdd, index }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="font-display text-lg md:text-xl tracking-tight group-hover:italic transition-all truncate">{product.name}</h3>
-          <p className="text-muted-foreground text-sm mt-1 line-clamp-2 font-body">{product.description}</p>
+          <p className="text-muted-foreground text-sm mt-1 line-clamp-2 font-body" dangerouslySetInnerHTML={{ __html: product.description }} />
         </div>
         <span className="font-mono text-sm tracking-wide shrink-0">{product.formattedPrice || product.price?.toFixed(2)}</span>
       </div>
