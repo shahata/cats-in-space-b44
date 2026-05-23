@@ -13,6 +13,17 @@ import Checkout from './pages/Checkout';
 import OrderConfirmation from './pages/OrderConfirmation';
 import ProductDetail from './pages/ProductDetail';
 import Orders from './pages/Orders';
+import Planets from './pages/Planets';
+import PlanetDetail from './pages/PlanetDetail';
+import Crew from './pages/Crew';
+import CrewDetail from './pages/CrewDetail';
+import Missions from './pages/Missions';
+import MissionDetail from './pages/MissionDetail';
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
+import Plans from './pages/Plans';
+import Explore from './pages/Explore';
+import Research from './pages/Research';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
@@ -49,6 +60,17 @@ const AuthenticatedApp = () => {
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/order-confirmation" element={<OrderConfirmation />} />
       <Route path="/orders" element={<Orders />} />
+      <Route path="/planets" element={<Planets />} />
+      <Route path="/planets/:slug" element={<PlanetDetail />} />
+      <Route path="/crew" element={<Crew />} />
+      <Route path="/crew/:slug" element={<CrewDetail />} />
+      <Route path="/missions" element={<Missions />} />
+      <Route path="/missions/:slug" element={<MissionDetail />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
+      <Route path="/plans" element={<Plans />} />
+      <Route path="/explore" element={<Explore />} />
+      <Route path="/research" element={<Research />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { ShoppingBag, ChevronDown, ExternalLink, Package, LogOut } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
@@ -10,6 +10,8 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [siteId, setSiteId] = useState(null);
   const menuRef = useRef(null);
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const exploreRef = useRef(null);
 
   useEffect(() => {
     base44.auth.isAuthenticated().then(authed => {
@@ -44,6 +46,7 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
+      if (exploreRef.current && !exploreRef.current.contains(e.target)) setExploreOpen(false);
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -52,12 +55,64 @@ export default function Header() {
 
   const manageUrl = siteId ? `https://manage.wix.com/dashboard/${siteId}` : '#';
 
+  const navLinks = [
+    { to: '/explore', label: 'Explore', hasDropdown: true },
+    { to: '/blog', label: "Ship's Log" },
+    { to: '/research', label: 'Research' },
+    { to: '/plans', label: 'Plans' },
+  ];
+
+  const exploreLinks = [
+    { to: '/planets', label: '🌍 Planets' },
+    { to: '/crew', label: '🧑‍🚀 Crew' },
+    { to: '/missions', label: '🚀 Missions' },
+  ];
+
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-background/80 backdrop-blur-xl border-b border-border/50' : 'bg-transparent'}`}>
       <div className="flex items-center justify-between px-[6vw] md:px-[8vw] h-16 md:h-20">
         <Link to="/" className="font-display text-2xl md:text-3xl tracking-widest text-primary hover:text-primary/80 transition-colors uppercase">
           Cats in Space
         </Link>
+
+        {/* Main nav */}
+        <nav className="hidden lg:flex items-center gap-6">
+          {navLinks.map(link => (
+            link.hasDropdown ? (
+              <div key={link.to} className="relative" ref={exploreRef}>
+                <button
+                  onClick={() => setExploreOpen(o => !o)}
+                  className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
+                  {link.label}
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${exploreOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {exploreOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-44 bg-background border border-border shadow-lg z-50 py-1">
+                    <Link to={link.to} onClick={() => setExploreOpen(false)}
+                      className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                      🚢 The Ship
+                    </Link>
+                    {exploreLinks.map(el => (
+                      <Link key={el.to} to={el.to} onClick={() => setExploreOpen(false)}
+                        className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                        {el.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <NavLink key={link.to} to={link.to}
+                className={({ isActive }) =>
+                  `text-xs font-mono tracking-widest uppercase transition-colors ${
+                    isActive ? 'text-primary' : 'text-foreground/70 hover:text-primary'
+                  }`
+                }>
+                {link.label}
+              </NavLink>
+            )
+          ))}
+        </nav>
 
         <div className="flex items-center gap-5">
           {user ? (
