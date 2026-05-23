@@ -58,8 +58,8 @@ export default function Header() {
   const manageUrl = siteId ? `https://manage.wix.com/dashboard/${siteId}` : '#';
 
   const navLinks = [
-    { to: '/explore', label: 'Explore', hasDropdown: true },
-    { to: '/facilities', label: 'Facilities', hasDropdown: true },
+    { to: '/explore', label: 'Explore', dropdownType: 'explore' },
+    { to: '/facilities', label: 'Facilities', dropdownType: 'facilities' },
     { to: '/blog', label: "Ship's Log" },
     { to: '/research', label: 'Research' },
     { to: '/plans', label: 'Plans' },
@@ -88,45 +88,38 @@ export default function Header() {
         {/* Main nav */}
         <nav className="hidden lg:flex items-center gap-6">
           {navLinks.map(link => (
-            link.hasDropdown ? (
-              <div key={link.to} className="relative" ref={exploreRef}>
+            link.dropdownType ? (
+              <div key={link.to} className="relative" ref={link.dropdownType === 'explore' ? exploreRef : facilitiesRef}>
                 <button
-                  onClick={() => setOpenDropdown(openDropdown === 'explore' ? null : 'explore')}
+                  onClick={() => setOpenDropdown(openDropdown === link.dropdownType ? null : link.dropdownType)}
                   className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
                   {link.label}
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${openDropdown === 'explore' ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${openDropdown === link.dropdownType ? 'rotate-180' : ''}`} />
                 </button>
-                {openDropdown === 'explore' && (
+                {openDropdown === link.dropdownType && (
                   <div className="absolute top-full left-0 mt-2 w-44 bg-background border border-border shadow-lg z-50 py-1">
-                    <Link to={link.to} onClick={() => setOpenDropdown(null)}
-                      className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
-                      🚢 The Ship
-                    </Link>
-                    {exploreLinks.map(el => (
-                      <Link key={el.to} to={el.to} onClick={() => setOpenDropdown(null)}
-                        className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
-                        {el.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : link.to === '/facilities' ? (
-              <div key={link.to} className="relative" ref={facilitiesRef}>
-                <button
-                  onClick={() => setOpenDropdown(openDropdown === 'facilities' ? null : 'facilities')}
-                  className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
-                  {link.label}
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${openDropdown === 'facilities' ? 'rotate-180' : ''}`} />
-                </button>
-                {openDropdown === 'facilities' && (
-                  <div className="absolute top-full left-0 mt-2 w-44 bg-background border border-border shadow-lg z-50 py-1">
-                    {facilitiesLinks.map(fl => (
-                      <Link key={fl.to} to={fl.to} onClick={() => setOpenDropdown(null)}
-                        className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
-                        {fl.label}
-                      </Link>
-                    ))}
+                    {link.dropdownType === 'explore' && (
+                      <>
+                        <Link to={link.to} onClick={() => setOpenDropdown(null)}
+                          className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                          🚢 The Ship
+                        </Link>
+                        {exploreLinks.map(el => (
+                          <Link key={el.to} to={el.to} onClick={() => setOpenDropdown(null)}
+                            className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                            {el.label}
+                          </Link>
+                        ))}
+                      </>
+                    )}
+                    {link.dropdownType === 'facilities' && (
+                      facilitiesLinks.map(fl => (
+                        <Link key={fl.to} to={fl.to} onClick={() => setOpenDropdown(null)}
+                          className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                          {fl.label}
+                        </Link>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
