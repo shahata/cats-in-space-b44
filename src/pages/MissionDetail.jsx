@@ -9,13 +9,26 @@ import { getStatusClass } from '../lib/wixUtils';
 export default function MissionDetail() {
   const { slug } = useParams();
   const [mission, setMission] = useState(null);
+  const [crew, setCrew] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', slug })
-      .then(res => setMission(res.data.item || null))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', slug }),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers' })
+    ]).then(([missionRes, crewRes]) => {
+      const missionData = missionRes.data.item;
+      if (missionData) {
+        setMission(missionData);
+        // Filter crew by mission assignment if crewIds field exists
+        const assignedCrew = crewRes.data.items?.filter(c => 
+          missionData.crewIds?.includes(c._id) || 
+          missionData.crew?.includes(c._id) ||
+          (missionData.crewNames && missionData.crewNames.some(cn => cn.toLowerCase().includes((c.title || c.name || '').toLowerCase())))
+        ) || [];
+        setCrew(assignedCrew);
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
   }, [slug]);
 
   if (loading) return (
@@ -34,7 +47,7 @@ export default function MissionDetail() {
 
   const name = mission.title;
   const destName = mission.planet;
-  const crewArr = [];
+  const planetSlug = mission.planetSlug || mission.planet?.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -54,7 +67,9 @@ export default function MissionDetail() {
             </div>
 
             {destName && (
-              <p className="text-primary font-mono text-sm mb-6">→ {destName}</p>
+              <Link to={`/planets/${planetSlug}`} className="text-primary font-mono text-sm mb-6 hover:underline inline-flex items-center gap-1">
+                → {destName}
+              </Link>
             )}
 
             {mission.description && (
@@ -64,11 +79,11 @@ export default function MissionDetail() {
               </div>
             )}
 
-            {crewArr.length > 0 && (
+            {crew.length > 0 && (
               <div>
-                <h2 className="font-display text-2xl tracking-widest text-primary uppercase mb-5">Crew</h2>
+                <h2 className="font-display text-2xl tracking-widest text-primary uppercase mb-5">Mission Crew</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {crewArr.map((c, ci) => {
+                  {crew.map((c, ci) => {
                     const cName = c.name || c.title;
                     const cSlug = c.slug || cName?.toLowerCase().replace(/\s+/g, '-');
                     const cImage = c.photo || c.image || c.mainImage;
@@ -77,7 +92,7 @@ export default function MissionDetail() {
                         {cImage ? (
                           <img src={cImage} alt={cName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-lg flex-shrink-0">🐱</div>
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center text-lg flex-shrink-0">🐱</div>
                         )}
                         <div className="min-w-0">
                           <p className="text-sm font-body group-hover:text-primary transition-colors truncate">{cName}</p>
