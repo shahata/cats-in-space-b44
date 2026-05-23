@@ -57,6 +57,12 @@ export default function Header() {
                 Manage Store
               </a>
             )}
+            <button
+              onClick={() => base44.auth.logout()}
+              className="text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-foreground transition-colors"
+            >
+              Logout
+            </button>
           </div>
         ) : (
           <button onClick={() => base44.auth.redirectToLogin()} className="text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-foreground transition-colors hidden md:block">Sign In</button>
