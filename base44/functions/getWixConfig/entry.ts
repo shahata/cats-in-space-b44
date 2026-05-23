@@ -7,7 +7,8 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     return Response.json({
-      siteId: Deno.env.get('WIX_INSTANCE_ID') || '',
+      instanceId: Deno.env.get('WIX_INSTANCE_ID') || '',
+      siteId: Deno.env.get('WIX_SITE_ID') || '',
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
