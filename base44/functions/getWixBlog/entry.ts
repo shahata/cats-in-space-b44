@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { postId, category, limit = 50 } = body;
+    const { postId, category, limit = 50, language = 'en' } = body;
 
     const accessToken = await getAccessToken(clientId, clientSecret);
     const headers = {
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     // Get single post
     if (postId) {
-      const res = await fetch(`https://www.wixapis.com/v3/posts/${postId}`, { 
+      const res = await fetch(`https://www.wixapis.com/v3/posts/${postId}?language=${language}`, { 
         method: 'GET', 
         headers 
       });
@@ -87,8 +87,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Query posts
+    // Query posts (filtered by language)
     const queryBody = {
+      language,
       query: {
         filter: category ? { categoryIds: { $hasSome: [category] } } : {},
         sort: [{ fieldName: 'firstPublishedDate', order: 'DESC' }],
@@ -110,8 +111,8 @@ Deno.serve(async (req) => {
 
     const posts = (data.posts || []).map(processPost).filter(p => p);
 
-    // Get categories
-    const categoriesRes = await fetch('https://www.wixapis.com/v3/categories', { 
+    // Get categories (filtered by language)
+    const categoriesRes = await fetch(`https://www.wixapis.com/v3/categories?language=${language}`, { 
       method: 'GET', 
       headers 
     });
