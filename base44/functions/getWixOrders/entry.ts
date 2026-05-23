@@ -16,6 +16,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const userEmail = user.email.toLowerCase();
 
     const clientId = Deno.env.get('WIX_CLIENT_ID');
     const clientSecret = Deno.env.get('WIX_CLIENT_SECRET');
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        filter: { 'buyerInfo.email': user.email },
+        filter: { 'buyerInfo.email': userEmail },
         sort: [{ fieldName: '_createdDate', order: 'DESC' }],
         cursorPaging: { limit: 50 },
       }),
@@ -47,7 +48,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: searchData }, { status: searchRes.status });
     }
 
-    const orders = (searchData.orders || []).map(o => ({
+    const orders = (searchData.orders || [])
+      .filter(o => (o.buyerInfo?.email || '').toLowerCase() === userEmail)
+      .map(o => ({
       id: o._id,
       number: o.number,
       createdDate: o._createdDate,
