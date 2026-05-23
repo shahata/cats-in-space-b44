@@ -26,7 +26,7 @@ export default function Home() {
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1446776709462-d6b525b1516d?w=1800&q=80"
+            src="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1800&q=80"
             alt="Space"
             className="w-full h-full object-cover"
           />
