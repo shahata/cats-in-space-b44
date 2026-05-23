@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
     const instanceId = Deno.env.get("WIX_INSTANCE_ID");
     if (!clientId || !instanceId) return Response.json({ error: "Missing config" }, { status: 500 });
 
-    const body = await req.json().catch(() => ({}));
-    const { serviceId } = body;
+    const reqBody = await req.json().catch(() => ({}));
+    const { serviceId } = reqBody;
 
     const accessToken = await getAnonToken(clientId);
     const headers = {
@@ -46,13 +46,22 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // Try Wix Services API
-    let url = 'https://www.wixapis.com/v1/bookings/services';
-    if (serviceId) {
-      url = `https://www.wixapis.com/v1/bookings/services/${serviceId}`;
-    }
+    // Try Wix Services API v2 - uses POST query endpoint
+    let url = 'https://www.wixapis.com/_api/bookings/v2/services/query';
+    const queryBody = {
+      filter: serviceId ? { _id: serviceId } : {},
+      sort: [{ fieldName: 'name' }],
+      query: {
+        filter: serviceId ? { _id: serviceId } : {},
+        sort: [{ fieldName: 'name' }]
+      }
+    };
 
-    const res = await fetch(url, { method: 'GET', headers });
+    const res = await fetch(url, { 
+      method: 'POST', 
+      headers,
+      body: JSON.stringify(queryBody)
+    });
     const data = await safeJson(res);
 
     if (!res.ok) {
@@ -60,16 +69,14 @@ Deno.serve(async (req) => {
       return Response.json({ services: [], service: null });
     }
 
-    // Handle both single service and list responses
+    // Handle v2 query response structure
     let services = [];
-    if (data.services && Array.isArray(data.services)) {
+    if (data.items && Array.isArray(data.items)) {
+      services = data.items;
+    } else if (data.services && Array.isArray(data.services)) {
       services = data.services;
     } else if (data.service) {
       services = [data.service];
-    } else if (Array.isArray(data)) {
-      services = data;
-    } else if (data.items && Array.isArray(data.items)) {
-      services = data.items;
     }
     const processed = services.map(processService).filter(s => s);
 
