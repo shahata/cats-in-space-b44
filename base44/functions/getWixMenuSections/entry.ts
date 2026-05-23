@@ -88,16 +88,57 @@ Deno.serve(async (req) => {
       });
       const itemsData = await safeJson(itemsRes);
       
-      items = (itemsData.items || []).map(item => ({
-        id: item._id || item.id,
-        name: item.name || item.title,
-        description: item.description,
-        price: item.price?.value || 0,
-        currency: item.price?.currency || 'USD',
-        image: item.media?.image?.url,
-        categoryId: item.sectionId,
-        available: item.inStock !== false,
-      }));
+      items = (itemsData.items || []).map(item => {
+        // Extract price - can be in multiple locations
+        let priceValue = 0;
+        let priceCurrency = 'USD';
+        
+        // Try different price structures
+        if (item.price?.value !== undefined) {
+          priceValue = item.price.value;
+          priceCurrency = item.price.currency || 'USD';
+        } else if (item.priceData?.price?.value !== undefined) {
+          priceValue = item.priceData.price.value;
+          priceCurrency = item.priceData.price.currency || 'USD';
+        } else if (item.pricing?.price?.value !== undefined) {
+          priceValue = item.pricing.price.value;
+          priceCurrency = item.pricing.price.currency || 'USD';
+        } else if (item.rate?.value !== undefined) {
+          priceValue = item.rate.value;
+          priceCurrency = item.rate.currency || 'USD';
+        } else if (item.cost?.value !== undefined) {
+          priceValue = item.cost.value;
+          priceCurrency = item.cost.currency || 'USD';
+        }
+        
+        // Extract image - can be in multiple locations
+        let imageUrl = null;
+        if (item.media?.image?.url) {
+          imageUrl = item.media.image.url;
+        } else if (item.media?.mainMedia?.image?.url) {
+          imageUrl = item.media.mainMedia.image.url;
+        } else if (item.image?.url) {
+          imageUrl = item.image.url;
+        } else if (typeof item.image === 'string') {
+          imageUrl = item.image;
+        }
+        
+        // Convert relative image URLs to absolute Wix CDN URLs
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          imageUrl = `https://static.wixstatic.com/media/${imageUrl}`;
+        }
+        
+        return {
+          id: item._id || item.id,
+          name: item.name || item.title,
+          description: item.description,
+          price: priceValue,
+          currency: priceCurrency,
+          image: imageUrl,
+          categoryId: item.sectionId,
+          available: item.inStock !== false,
+        };
+      });
     }
 
     // Build menu structure

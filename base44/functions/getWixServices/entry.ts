@@ -21,20 +21,51 @@ async function getAccessToken(clientId, clientSecret) {
 function processService(service) {
   if (!service) return null;
   
-  // Extract image URL
+  // Extract price - can be in multiple locations
+  let priceValue = 0;
+  let priceCurrency = 'USD';
+  
+  // Try different price structures
+  if (service.price?.value !== undefined) {
+    priceValue = service.price.value;
+    priceCurrency = service.price.currency || 'USD';
+  } else if (service.priceData?.price?.value !== undefined) {
+    priceValue = service.priceData.price.value;
+    priceCurrency = service.priceData.price.currency || 'USD';
+  } else if (service.pricing?.price?.value !== undefined) {
+    priceValue = service.pricing.price.value;
+    priceCurrency = service.pricing.price.currency || 'USD';
+  } else if (service.rate?.value !== undefined) {
+    priceValue = service.rate.value;
+    priceCurrency = service.rate.currency || 'USD';
+  } else if (service.cost?.value !== undefined) {
+    priceValue = service.cost.value;
+    priceCurrency = service.cost.currency || 'USD';
+  }
+  
+  // Extract image - can be in multiple locations
   let imageUrl = null;
   if (service.media?.mainMedia?.image?.url) {
     imageUrl = service.media.mainMedia.image.url;
-  } else if (service.image) {
-    imageUrl = typeof service.image === 'string' ? service.image : service.image.url;
+  } else if (service.media?.image?.url) {
+    imageUrl = service.media.image.url;
+  } else if (service.image?.url) {
+    imageUrl = service.image.url;
+  } else if (typeof service.image === 'string') {
+    imageUrl = service.image;
+  }
+  
+  // Convert relative image URLs to absolute Wix CDN URLs
+  if (imageUrl && !imageUrl.startsWith('http')) {
+    imageUrl = `https://static.wixstatic.com/media/${imageUrl}`;
   }
   
   return {
     id: service._id || service.id,
     name: service.name || 'Untitled Service',
     description: service.description || '',
-    price: service.price?.value || 0,
-    currency: service.price?.currency || 'USD',
+    price: priceValue,
+    currency: priceCurrency,
     duration: service.duration?.minutes || 60,
     image: imageUrl,
     category: service.category?.name || 'General',
@@ -90,6 +121,11 @@ Deno.serve(async (req) => {
       services = data.services;
     } else if (data.service) {
       services = [data.service];
+    }
+    
+    // Debug: log first service structure
+    if (services.length > 0) {
+      console.log('[getWixServices] First service price structure:', JSON.stringify(services[0].price, null, 2));
     }
     
     const processed = services.map(processService).filter(s => s);
