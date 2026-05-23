@@ -60,7 +60,11 @@ export default function useWixCart() {
 
   const addItem = useCallback(async (productId) => {
     setActionLoading(true);
-    const res = await invoke({ action: 'addItem', productId, quantity: 1 });
+    let res = await invoke({ action: 'addItem', productId, quantity: 1 });
+    // If cart was expired and cleared, res.cart will be undefined — retry fresh
+    if (!res.cart) {
+      res = await invoke({ action: 'addItem', productId, quantity: 1 });
+    }
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);
     return res.cart;
