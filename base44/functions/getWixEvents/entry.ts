@@ -1,5 +1,17 @@
-import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { createClient, OAuthStrategy, media } from 'npm:@wix/sdk@1.21.12';
 import { wixEventsV2 as wixEvents } from 'npm:@wix/events@1.0.764';
+
+function toImageUrl(val) {
+  if (!val) return null;
+  const id = typeof val === 'string' ? val : (val?.url || val?.src?.url || val?.id);
+  if (!id) return null;
+  if (typeof id === 'string' && id.startsWith('http')) return id;
+  try {
+    return media.getImageUrl(id).url;
+  } catch {
+    return null;
+  }
+}
 
 function mapEvent(e) {
   const sched = e.scheduling || {};
@@ -18,7 +30,7 @@ function mapEvent(e) {
     startTime: sched.startTimeFormatted || config.startTime,
     endDateISO: config.endDate || null,
     location: e.location?.name,
-    image: e.mainImage?.url,
+    image: toImageUrl(e.mainImage),
     price: e.ticketPricing?.price?.value || 0,
     currency: e.ticketPricing?.price?.currency || 'USD',
     availableTickets: e.ticketInventory?.availableTickets,

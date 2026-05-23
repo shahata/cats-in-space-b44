@@ -1,12 +1,23 @@
-import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { createClient, OAuthStrategy, media } from 'npm:@wix/sdk@1.21.12';
 import { posts, categories } from 'npm:@wix/blog@latest';
+
+function toImageUrl(val) {
+  if (!val) return null;
+  const id = typeof val === 'string' ? val : (val?.url || val?.src?.url || val?.id);
+  if (!id) return null;
+  if (typeof id === 'string' && id.startsWith('http')) return id;
+  try {
+    return media.getImageUrl(id).url;
+  } catch {
+    return null;
+  }
+}
 
 function processPost(post) {
   if (!post) return null;
-  let imageUrl = null;
-  if (post.featuredImage) imageUrl = post.featuredImage.url || post.featuredImage;
-  else if (post.media?.wixMedia?.image) imageUrl = post.media.wixMedia.image;
-  else if (post.image) imageUrl = typeof post.image === 'string' ? post.image : post.image.url;
+  const imageUrl = toImageUrl(
+    post.featuredImage || post.media?.wixMedia?.image || post.image
+  );
 
   const cats = (post.categories || []).map(c => c.name || c).filter(Boolean);
 

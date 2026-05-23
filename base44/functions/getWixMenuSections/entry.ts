@@ -1,5 +1,18 @@
-import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { createClient, OAuthStrategy, media } from 'npm:@wix/sdk@1.21.12';
 import { menus, sections, items as menuItems } from 'npm:@wix/restaurants@1.0.497';
+
+function toImageUrl(val, w, h) {
+  if (!val) return null;
+  const id = typeof val === 'string' ? val : (val?.url || val?.src?.url || val?.id);
+  if (!id) return null;
+  if (typeof id === 'string' && id.startsWith('http')) return id;
+  try {
+    if (w && h) return media.getScaledToFillImageUrl(id, w, h, {}).url;
+    return media.getImageUrl(id).url;
+  } catch {
+    return null;
+  }
+}
 
 Deno.serve(async (req) => {
   try {
@@ -38,7 +51,7 @@ Deno.serve(async (req) => {
         id: s._id || s.id,
         name: s.name || s.title,
         description: s.description,
-        image: s.additionalImages?.[0]?.url || s.image?.url,
+        image: toImageUrl(s.additionalImages?.[0] || s.image),
         itemIds: s.itemIds || [],
       }));
 
@@ -57,8 +70,11 @@ Deno.serve(async (req) => {
           if (s?.value !== undefined) { priceValue = s.value; priceCurrency = s.currency || 'USD'; break; }
         }
 
-        let imageUrl = item.media?.image?.url || item.media?.mainMedia?.image?.url || item.image?.url || (typeof item.image === 'string' ? item.image : null);
-        if (imageUrl && !imageUrl.startsWith('http')) imageUrl = `https://static.wixstatic.com/media/${imageUrl}`;
+        const imageUrl = toImageUrl(
+          item.media?.image || item.media?.mainMedia?.image || item.image,
+          600,
+          450
+        );
 
         const labels = [];
         if (Array.isArray(item.labels)) item.labels.forEach(l => {

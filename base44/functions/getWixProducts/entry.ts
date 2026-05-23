@@ -1,14 +1,16 @@
-import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { createClient, OAuthStrategy, media } from 'npm:@wix/sdk@1.21.12';
 import { productsV3 } from 'npm:@wix/stores@1.0.786';
 
 function processWixImage(val, w = 800, h = 800) {
   if (!val) return '';
-  const url = typeof val === 'string' ? val : (val?.url || val?.src?.url || '');
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-  const match = url.match(/wix:image:\/\/v1\/([^/]+)\/(.*?)(?:#|$)/);
-  if (match) return `https://static.wixstatic.com/media/${match[1]}/v1/fill/w_${w},h_${h},al_c,q_85,enc_auto/${match[2]}`;
-  return '';
+  const id = typeof val === 'string' ? val : (val?.url || val?.src?.url || val?.id);
+  if (!id) return '';
+  if (typeof id === 'string' && id.startsWith('http')) return id;
+  try {
+    return media.getScaledToFillImageUrl(id, w, h, {}).url || media.getImageUrl(id).url;
+  } catch {
+    return '';
+  }
 }
 
 Deno.serve(async () => {

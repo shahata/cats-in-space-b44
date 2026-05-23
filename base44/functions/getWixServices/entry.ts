@@ -1,5 +1,17 @@
-import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { createClient, OAuthStrategy, media } from 'npm:@wix/sdk@1.21.12';
 import { services } from 'npm:@wix/bookings@1.0.1396';
+
+function toImageUrl(val) {
+  if (!val) return null;
+  const id = typeof val === 'string' ? val : (val?.url || val?.src?.url || val?.id);
+  if (!id) return null;
+  if (typeof id === 'string' && id.startsWith('http')) return id;
+  try {
+    return media.getImageUrl(id).url;
+  } catch {
+    return null;
+  }
+}
 
 function processService(service) {
   if (!service) return null;
@@ -15,13 +27,9 @@ function processService(service) {
     }
   }
 
-  let imageUrl = service.media?.mainMedia?.image?.url
-    || service.media?.image?.url
-    || service.image?.url
-    || (typeof service.image === 'string' ? service.image : null);
-  if (imageUrl && !imageUrl.startsWith('http')) {
-    imageUrl = `https://static.wixstatic.com/media/${imageUrl}`;
-  }
+  const imageUrl = toImageUrl(
+    service.media?.mainMedia?.image || service.media?.image || service.image
+  );
 
   return {
     id: service._id || service.id,

@@ -1,5 +1,17 @@
-import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { createClient, OAuthStrategy, media } from 'npm:@wix/sdk@1.21.12';
 import { giftCardProducts } from 'npm:@wix/gift-vouchers@1.0.76';
+
+function toImageUrl(val) {
+  if (!val) return null;
+  const id = typeof val === 'string' ? val : (val?.url || val?.src?.url || val?.id);
+  if (!id) return null;
+  if (typeof id === 'string' && id.startsWith('http')) return id;
+  try {
+    return media.getImageUrl(id).url;
+  } catch {
+    return null;
+  }
+}
 
 Deno.serve(async () => {
   try {
@@ -30,7 +42,7 @@ Deno.serve(async () => {
       id: v.id,
       price: parseFloat(v.price?.amount || 0),
       value: parseFloat(v.value?.amount || v.price?.amount || 0),
-      image: v.image?.url || null,
+      image: toImageUrl(v.image),
     })).filter(v => v.value > 0);
 
     return Response.json({
@@ -38,7 +50,7 @@ Deno.serve(async () => {
         id: product.id,
         name: product.name || 'eGift Card',
         description: product.description || '',
-        image: product.image?.url || null,
+        image: toImageUrl(product.image),
         amounts: variants.map(v => v.value),
         variants,
         currency: 'ILS',
