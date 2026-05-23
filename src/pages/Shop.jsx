@@ -12,7 +12,7 @@ export default function Shop() {
   const [products, setProducts] = useState([]);
   const [collections, setCollections] = useState([]);
   const [giftCard, setGiftCard] = useState(null);
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState('');
   const [loading, setLoading] = useState(true);
   const { addItem } = useWixCart();
 
@@ -27,13 +27,20 @@ export default function Shop() {
     }).finally(() => setLoading(false));
   }, []);
 
+  // Default to first Wix collection (e.g. "All Products") once collections load
+  useEffect(() => {
+    if (!activeCategory && collections.length > 0) {
+      setActiveCategory(collections[0].id);
+    }
+  }, [collections, activeCategory]);
+
   const filteredProducts = useMemo(() => {
-    if (activeCategory === 'all') return products;
     if (activeCategory === 'gift-cards') return [];
+    if (!activeCategory) return products;
     return products.filter(p => p.collections?.some(c => c.id === activeCategory));
   }, [products, activeCategory]);
 
-  const showGiftCard = giftCard && (activeCategory === 'all' || activeCategory === 'gift-cards');
+  const showGiftCard = giftCard && activeCategory === 'gift-cards';
 
   const handleGiftCardAdd = async (data) => {
     // Add gift card as a checkout item — uses gift voucher app
@@ -70,16 +77,6 @@ export default function Shop() {
         {/* Category tabs */}
         {!loading && (collections.length > 0 || giftCard) && (
           <div className="flex flex-wrap gap-2 mb-10 border-b border-border pb-1">
-            <button
-              onClick={() => setActiveCategory('all')}
-              className={`px-4 py-2 text-xs font-mono tracking-widest uppercase border-b-2 transition-colors -mb-px ${
-                activeCategory === 'all'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              All Products
-            </button>
             {collections.map(col => (
               <button
                 key={col.id}

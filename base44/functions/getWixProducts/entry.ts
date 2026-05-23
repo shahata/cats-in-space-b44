@@ -62,6 +62,15 @@ Deno.serve(async (req) => {
       slug: c.slug,
     }));
 
+    // Build a lookup so we can resolve collection name from collectionId on each product.
+    // (Using p.collectionIds is more reliable than collection.productIds, which often comes back empty.)
+    const collectionsById = {};
+    (collectionsData.collections || []).forEach(c => {
+      const cid = c.id || c._id;
+      collectionsById[cid] = { id: cid, name: c.name };
+    });
+
+    // Fallback map from collection.productIds (used when product has no collectionIds)
     const productCollectionsMap = {};
     (collectionsData.collections || []).forEach(c => {
       (c.productIds || []).forEach(pid => {
@@ -87,7 +96,11 @@ Deno.serve(async (req) => {
       });
       const inStock = p.stock?.inStock !== false;
       const hasVariants = p.manageVariants === true && variants.length > 0;
-      const productCollections = productCollectionsMap[p.id] || [];
+
+      // Primary: use p.collectionIds (always set by Wix); Fallback: c.productIds-based map.
+      const productCollections = (p.collectionIds && p.collectionIds.length > 0)
+        ? p.collectionIds.map(cid => collectionsById[cid]).filter(Boolean)
+        : (productCollectionsMap[p.id] || []);
       return {
         id: p.id,
         name: p.name,
