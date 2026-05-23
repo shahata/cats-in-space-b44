@@ -112,7 +112,40 @@ Deno.serve(async (req) => {
       return Response.json({ error: data, items: [], total: 0 }, { status: res.status });
     }
 
-    const items = (data.dataItems || []).map(item => processItem(item));
+    // Build a map of referenced items by their field name and ID
+    const refMap = {};
+    if (data.referencedItems && typeof data.referencedItems === 'object') {
+      for (const [fieldName, refItems] of Object.entries(data.referencedItems)) {
+        refMap[fieldName] = {};
+        (refItems || []).forEach(refItem => {
+          const processed = processItem(refItem);
+          refMap[fieldName][refItem.id] = processed;
+        });
+      }
+    }
+
+    // Process main items and merge in referenced items
+    const items = (data.dataItems || []).map(item => {
+      const processed = processItem(item);
+      // Merge referenced items into the processed item
+      if (includeRefs.length > 0) {
+        includeRefs.forEach(refField => {
+          if (refMap[refField] && processed[refField]) {
+            // If it's an array of IDs, replace with array of full items
+            if (Array.isArray(processed[refField])) {
+              processed[refField] = processed[refField]
+                .map(id => refMap[refField][id] || id)
+                .filter(Boolean);
+            } 
+            // If it's a single ID, replace with full item
+            else if (typeof processed[refField] === 'string' && refMap[refField][processed[refField]]) {
+              processed[refField] = refMap[refField][processed[refField]];
+            }
+          }
+        });
+      }
+      return processed;
+    });
     const total = data.totalCount || items.length;
 
     if (slug) {
