@@ -100,12 +100,12 @@ export default function Header() {
                   <div className="absolute top-full left-0 mt-2 w-44 bg-background border border-border shadow-lg z-50 py-1">
                     {link.dropdownType === 'explore' && (
                       <>
-                        <Link to={link.to} onClick={() => setOpenDropdown(null)}
+                        <Link to={link.to}
                           className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
                           🚢 The Ship
                         </Link>
                         {exploreLinks.map(el => (
-                          <Link key={el.to} to={el.to} onClick={() => setOpenDropdown(null)}
+                          <Link key={el.to} to={el.to}
                             className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
                             {el.label}
                           </Link>
@@ -114,7 +114,7 @@ export default function Header() {
                     )}
                     {link.dropdownType === 'facilities' && (
                       facilitiesLinks.map(fl => (
-                        <Link key={fl.to} to={fl.to} onClick={() => setOpenDropdown(null)}
+                        <Link key={fl.to} to={fl.to}
                           className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
                           {fl.label}
                         </Link>
