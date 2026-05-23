@@ -15,27 +15,17 @@ export default function MissionDetail() {
 
   useEffect(() => {
     Promise.all([
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', slug }),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers' }),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Planets' })
-    ]).then(([missionRes, crewRes, planetRes]) => {
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', slug, includeRefs: ['crew', 'planet'] }),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers' })
+    ]).then(([missionRes, crewRes]) => {
       const missionData = missionRes.data.item;
       if (missionData) {
         setMission(missionData);
-        // Show all crew if no specific assignment, or filter by crewIds/crew field
-        const allCrew = crewRes.data.items || [];
-        const assignedCrew = missionData.crewIds 
-          ? allCrew.filter(c => missionData.crewIds.includes(c._id))
-          : missionData.crew
-            ? allCrew.filter(c => missionData.crew.includes(c._id))
-            : allCrew;
+        // crew is now included via includeRefs
+        const assignedCrew = missionData.crew || [];
         setCrew(assignedCrew);
-        // Find the planet by name match
-        const allPlanets = planetRes.data.items || [];
-        const destPlanet = allPlanets.find(p => 
-          (p.name || p.title || '').toLowerCase() === (missionData.planet || '').toLowerCase()
-        );
-        setPlanet(destPlanet || null);
+        // planet is now included via includeRefs
+        setPlanet(missionData.planet || null);
       }
     }).catch(() => {}).finally(() => setLoading(false));
   }, [slug]);
@@ -89,9 +79,9 @@ export default function MissionDetail() {
                 <h2 className="font-display text-2xl tracking-widest text-primary uppercase mb-5">Mission Crew</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {crew.map((c, ci) => {
-                    const cName = c.name || c.title;
-                    const cSlug = c.slug || cName?.toLowerCase().replace(/\s+/g, '-');
-                    const cImage = c.photo || c.image || c.mainImage;
+                  const cName = c.name || c.title;
+                  const cSlug = c.slug || cName?.toLowerCase().replace(/\s+/g, '-');
+                  const cImage = c.image;
                     return (
                       <Link key={ci} to={`/crew/${cSlug}`} className="flex items-center gap-3 p-3 bg-card border border-border hover:border-primary/40 transition-colors group">
                         {cImage ? (
@@ -119,8 +109,8 @@ export default function MissionDetail() {
                   ['Status', mission.status],
                   ['Destination', destName ? (
                     <Link key="dest" to={`/planets/${planetSlug}`} className="flex items-center gap-2 hover:underline">
-                      {planet?.mainImage || planet?.photo || planet?.image ? (
-                        <img src={planet.mainImage || planet.photo || planet.image} alt={destName} className="w-8 h-8 rounded-full object-cover" />
+                      {planet?.image ? (
+                        <img src={planet.image} alt={destName} className="w-8 h-8 rounded-full object-cover" />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">🪐</div>
                       )}

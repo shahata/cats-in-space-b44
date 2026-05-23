@@ -23,7 +23,7 @@ export default function Home() {
       base44.functions.invoke('getWixProducts', {}).then(r => r.data.products || []).catch(() => []),
       base44.functions.invoke('getWixCMSData', { collectionId: 'Planets', limit: 3, sort: [{ fieldName: 'habitabilityScore', order: 'DESC' }] }).then(r => r.data.items || []).catch(() => []),
       base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers', limit: 6 }).then(r => r.data.items || []).catch(() => []),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', limit: 4 }).then(r => r.data.items || []).catch(() => []),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', limit: 4, includeRefs: ['crew', 'planet'] }).then(r => r.data.items || []).catch(() => []),
     ]).then(([prods, pls, cr, mis]) => {
       setProducts(prods);
       setPlanets(pls);
@@ -145,7 +145,7 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {crew.map((member, i) => {
-              const image = member.image || member.photo || member.mainImage;
+              const image = member.image;
               const name = member.title || member.name;
               const slug = member.slug || name?.toLowerCase().replace(/\s+/g, '-');
               return (

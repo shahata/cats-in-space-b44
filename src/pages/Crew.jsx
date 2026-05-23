@@ -33,7 +33,7 @@ export default function Crew() {
         ) : (
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
             {crew.map((member, i) => {
-              const image = member.image || member.photo || member.mainImage;
+              const image = member.image;
               const name = member.title || member.name;
               const slug = member.slug || name?.toLowerCase().replace(/\s+/g, '-');
               return (

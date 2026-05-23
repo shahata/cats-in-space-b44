@@ -18,7 +18,7 @@ export default function PlanetDetail() {
       const p = planetRes.data.item || null;
       setPlanet(p);
       if (p?.title) {
-        const missionsRes = await base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', filter: { planet: { $eq: p.title } } });
+        const missionsRes = await base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', filter: { planet: { $eq: p.title } }, includeRefs: ['crew'] });
         setMissions(missionsRes.data.items || []);
       }
       setLoading(false);
