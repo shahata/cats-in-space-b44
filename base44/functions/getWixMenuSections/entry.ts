@@ -1,75 +1,39 @@
-async function safeJson(res) {
-  const text = await res.text();
-  try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
-}
-
-async function getAccessToken(clientId, clientSecret) {
-  const res = await fetch("https://www.wixapis.com/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      clientId, 
-      clientSecret,
-      grantType: "client_credentials",
-    }),
-  });
-  const data = await safeJson(res);
-  if (!res.ok) throw new Error("Token error: " + JSON.stringify(data));
-  return data.access_token;
-}
+import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { menus, sections, items as menuItems } from 'npm:@wix/restaurants@1.0.497';
 
 Deno.serve(async (req) => {
   try {
-    const clientId = Deno.env.get("WIX_CLIENT_ID");
-    const clientSecret = Deno.env.get("WIX_CLIENT_SECRET");
-    
-    if (!clientId || !clientSecret) {
-      return Response.json({ error: "Missing WIX_CLIENT_ID or WIX_CLIENT_SECRET" }, { status: 500 });
-    }
+    const clientId = Deno.env.get('WIX_CLIENT_ID');
+    if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
     const body = await req.json().catch(() => ({}));
     const { includeItems = true } = body;
 
-    const accessToken = await getAccessToken(clientId, clientSecret);
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'wix-site-id': clientId,
-      'Content-Type': 'application/json',
-    };
-
-    // Query menus (not menu-sections)
-    const menusRes = await fetch('https://www.wixapis.com/restaurants/menus-menu/v1/menus/query', { 
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query: {} }),
+    const wix = createClient({
+      modules: { menus, sections, items: menuItems },
+      auth: OAuthStrategy({ clientId }),
     });
-    const menusData = await safeJson(menusRes);
-    
-    const menus = (menusData.menus || []);
-    
-    if (menus.length === 0) {
-      return Response.json({ 
-        sections: [],
-        items: [],
-        menuStructure: [],
-        menus: [],
-      });
+
+    const menusRes = await wix.menus.queryMenus().find().catch(e => {
+      console.error('[getWixMenuSections] queryMenus:', e.message);
+      return { items: [] };
+    });
+    const menusList = menusRes.items || [];
+
+    if (menusList.length === 0) {
+      return Response.json({ sections: [], items: [], menuStructure: [], menus: [] });
     }
 
-    // Get the first menu's sections
-    const menu = menus[0];
+    const menu = menusList[0];
     const sectionIds = menu.sectionIds || [];
-    
-    // Query all sections
-    const sectionsRes = await fetch('https://www.wixapis.com/restaurants/menus-section/v1/sections/query', { 
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query: {} }),
+
+    const sectionsRes = await wix.sections.querySections().find().catch(e => {
+      console.error('[getWixMenuSections] querySections:', e.message);
+      return { items: [] };
     });
-    const sectionsData = await safeJson(sectionsRes);
-    
-    const sections = (sectionsData.sections || [])
-      .filter(s => sectionIds.includes(s.id))
+
+    const sectionsList = (sectionsRes.items || [])
+      .filter(s => sectionIds.includes(s._id || s.id))
       .map(s => ({
         id: s._id || s.id,
         name: s.name || s.title,
@@ -78,64 +42,29 @@ Deno.serve(async (req) => {
         itemIds: s.itemIds || [],
       }));
 
-    let items = [];
+    let itemsList = [];
     if (includeItems) {
-      // Query menu items
-      const itemsRes = await fetch('https://www.wixapis.com/restaurants/menus-item/v1/items/query', { 
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ query: {} }),
+      const itemsRes = await wix.items.queryItems().find().catch(e => {
+        console.error('[getWixMenuSections] queryItems:', e.message);
+        return { items: [] };
       });
-      const itemsData = await safeJson(itemsRes);
-      
-      items = (itemsData.items || []).map(item => {
-        // Extract price - can be in multiple locations
+
+      itemsList = (itemsRes.items || []).map(item => {
         let priceValue = 0;
         let priceCurrency = 'USD';
-        
-        // Try different price structures
-        if (item.price?.value !== undefined) {
-          priceValue = item.price.value;
-          priceCurrency = item.price.currency || 'USD';
-        } else if (item.priceData?.price?.value !== undefined) {
-          priceValue = item.priceData.price.value;
-          priceCurrency = item.priceData.price.currency || 'USD';
-        } else if (item.pricing?.price?.value !== undefined) {
-          priceValue = item.pricing.price.value;
-          priceCurrency = item.pricing.price.currency || 'USD';
-        } else if (item.rate?.value !== undefined) {
-          priceValue = item.rate.value;
-          priceCurrency = item.rate.currency || 'USD';
-        } else if (item.cost?.value !== undefined) {
-          priceValue = item.cost.value;
-          priceCurrency = item.cost.currency || 'USD';
+        const sources = [item.price, item.priceData?.price, item.pricing?.price, item.rate, item.cost];
+        for (const s of sources) {
+          if (s?.value !== undefined) { priceValue = s.value; priceCurrency = s.currency || 'USD'; break; }
         }
-        
-        // Extract image - can be in multiple locations
-        let imageUrl = null;
-        if (item.media?.image?.url) {
-          imageUrl = item.media.image.url;
-        } else if (item.media?.mainMedia?.image?.url) {
-          imageUrl = item.media.mainMedia.image.url;
-        } else if (item.image?.url) {
-          imageUrl = item.image.url;
-        } else if (typeof item.image === 'string') {
-          imageUrl = item.image;
-        }
-        
-        // Convert relative image URLs to absolute Wix CDN URLs
-        if (imageUrl && !imageUrl.startsWith('http')) {
-          imageUrl = `https://static.wixstatic.com/media/${imageUrl}`;
-        }
-        
-        // Extract dietary/allergen labels
+
+        let imageUrl = item.media?.image?.url || item.media?.mainMedia?.image?.url || item.image?.url || (typeof item.image === 'string' ? item.image : null);
+        if (imageUrl && !imageUrl.startsWith('http')) imageUrl = `https://static.wixstatic.com/media/${imageUrl}`;
+
         const labels = [];
-        if (Array.isArray(item.labels)) {
-          item.labels.forEach(l => {
-            const name = typeof l === 'string' ? l : (l.name || l.title || l.label);
-            if (name) labels.push(name);
-          });
-        }
+        if (Array.isArray(item.labels)) item.labels.forEach(l => {
+          const name = typeof l === 'string' ? l : (l.name || l.title || l.label);
+          if (name) labels.push(name);
+        });
         if (Array.isArray(item.labelIds)) labels.push(...item.labelIds);
         if (Array.isArray(item.dietaryLabels)) labels.push(...item.dietaryLabels);
         if (Array.isArray(item.allergens)) labels.push(...item.allergens);
@@ -155,18 +84,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build menu structure
-    const menuStructure = sections.map(section => ({
+    const menuStructure = sectionsList.map(section => ({
       ...section,
-      items: items.filter(item => item.categoryId === section.id),
+      items: itemsList.filter(item => item.categoryId === section.id),
     }));
 
-    return Response.json({ 
-      sections,
-      items,
-      menuStructure,
-      menus,
-    });
+    return Response.json({ sections: sectionsList, items: itemsList, menuStructure, menus: menusList });
   } catch (err) {
     console.error('[getWixMenuSections] Error:', err.message);
     return Response.json({ error: err.message, sections: [], items: [] }, { status: 500 });

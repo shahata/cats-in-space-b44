@@ -1,87 +1,59 @@
-async function safeJson(res) {
-  const text = await res.text();
-  try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
-}
+import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { wixEventsV2 as wixEvents } from 'npm:@wix/events@1.0.764';
 
-async function getAnonToken(clientId, clientSecret) {
-  const res = await fetch("https://www.wixapis.com/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      clientId, 
-      clientSecret,
-      grantType: "client_credentials",
-    }),
-  });
-  const data = await safeJson(res);
-  if (!res.ok) throw new Error("Token error: " + JSON.stringify(data));
-  return data.access_token;
+function mapEvent(e) {
+  const sched = e.scheduling || {};
+  const config = sched.config || {};
+  const startISO = config.startDate || null;
+  const tags = e.tags || e.categories || [];
+  const tagNames = (Array.isArray(tags) ? tags : []).map(t => typeof t === 'string' ? t : (t.name || t.title)).filter(Boolean);
+  const slug = e.slug || (e.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return {
+    id: e._id || e.id,
+    slug,
+    name: e.title,
+    description: e.description,
+    startDateISO: startISO,
+    startDate: startISO ? startISO.split('T')[0] : null,
+    startTime: sched.startTimeFormatted || config.startTime,
+    endDateISO: config.endDate || null,
+    location: e.location?.name,
+    image: e.mainImage?.url,
+    price: e.ticketPricing?.price?.value || 0,
+    currency: e.ticketPricing?.price?.currency || 'USD',
+    availableTickets: e.ticketInventory?.availableTickets,
+    tags: tagNames,
+    about: e.about,
+    recurringStatus: e.scheduling?.config?.recurringEvents?.length || 0,
+  };
 }
 
 Deno.serve(async (req) => {
   try {
-    const clientId = Deno.env.get("WIX_CLIENT_ID");
-    const clientSecret = Deno.env.get("WIX_CLIENT_SECRET");
-    
-    if (!clientId || !clientSecret) {
-      return Response.json({ error: "Missing WIX_CLIENT_ID or WIX_CLIENT_SECRET" }, { status: 500 });
-    }
+    const clientId = Deno.env.get('WIX_CLIENT_ID');
+    if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
     const body = await req.json().catch(() => ({}));
     const { eventId } = body;
 
-    const accessToken = await getAnonToken(clientId, clientSecret);
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'wix-site-id': clientId,
-      'Content-Type': 'application/json',
-    };
-
-    let url = 'https://www.wixapis.com/events/v1/events?limit=50';
-    if (eventId) {
-      url = `https://www.wixapis.com/events/v1/events/${eventId}`;
-    }
-
-    const res = await fetch(url, { method: 'GET', headers });
-    const data = await safeJson(res);
-
-    if (!res.ok) {
-      console.error('[getWixEvents] API error:', res.status, data);
-      return Response.json({ events: [], event: null });
-    }
-
-    // Map event data - Wix Events uses 'scheduling' for dates
-    const events = (data.events || []).map(e => {
-      const sched = e.scheduling || {};
-      const config = sched.config || {};
-      const startISO = config.startDate || null;
-      const tags = e.tags || e.categories || [];
-      const tagNames = (Array.isArray(tags) ? tags : []).map(t => typeof t === 'string' ? t : (t.name || t.title)).filter(Boolean);
-      const slug = e.slug || (e.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      return {
-        id: e.id || e._id,
-        slug,
-        name: e.title,
-        description: e.description,
-        startDateISO: startISO,
-        startDate: startISO ? startISO.split('T')[0] : null,
-        startTime: sched.startTimeFormatted || config.startTime,
-        endDateISO: config.endDate || null,
-        location: e.location?.name,
-        image: e.mainImage?.url,
-        price: e.ticketPricing?.price?.value || 0,
-        currency: e.ticketPricing?.price?.currency || 'USD',
-        availableTickets: e.ticketInventory?.availableTickets,
-        tags: tagNames,
-        about: e.about,
-        recurringStatus: e.scheduling?.config?.recurringEvents?.length || 0,
-      };
+    const wix = createClient({
+      modules: { wixEvents },
+      auth: OAuthStrategy({ clientId }),
     });
 
     if (eventId) {
-      return Response.json({ event: events[0] || null, events: [] });
+      try {
+        const res = await wix.wixEvents.getEvent(eventId);
+        const ev = res.event || res;
+        return Response.json({ event: ev ? mapEvent(ev) : null, events: [] });
+      } catch (e) {
+        console.error('[getWixEvents] getEvent:', e.message);
+        return Response.json({ event: null, events: [] });
+      }
     }
-    return Response.json({ events });
+
+    const { items } = await wix.wixEvents.queryEvents().limit(50).find();
+    return Response.json({ events: (items || []).map(mapEvent) });
   } catch (err) {
     console.error('[getWixEvents] Error:', err.message);
     return Response.json({ error: err.message, events: [] }, { status: 500 });

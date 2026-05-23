@@ -1,54 +1,39 @@
-async function safeJson(res) {
-  const text = await res.text();
-  try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
-}
+import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { productsV3 } from 'npm:@wix/stores@1.0.786';
 
-async function getAccessToken(clientId, clientSecret) {
-  const res = await fetch("https://www.wixapis.com/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, clientSecret, grantType: "client_credentials" }),
-  });
-  const data = await safeJson(res);
-  if (!res.ok) throw new Error("Token error: " + JSON.stringify(data));
-  return data.access_token;
-}
-
-Deno.serve(async (req) => {
+// V3 categories aren't exposed as a standalone SDK module yet,
+// so we derive distinct categories from products.
+Deno.serve(async () => {
   try {
-    const clientId = Deno.env.get("WIX_CLIENT_ID");
-    const clientSecret = Deno.env.get("WIX_CLIENT_SECRET");
-    const instanceId = Deno.env.get("WIX_INSTANCE_ID") || clientId;
-    if (!clientId || !clientSecret) {
-      return Response.json({ error: "Missing Wix credentials" }, { status: 500 });
-    }
+    const clientId = Deno.env.get('WIX_CLIENT_ID');
+    if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
-    const accessToken = await getAccessToken(clientId, clientSecret);
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'wix-site-id': instanceId,
-      'Content-Type': 'application/json',
-    };
-
-    const res = await fetch('https://www.wixapis.com/stores-reader/v1/collections/query', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ query: {} }),
+    const wix = createClient({
+      modules: { productsV3 },
+      auth: OAuthStrategy({ clientId }),
     });
-    const data = await safeJson(res);
-    if (!res.ok) {
-      console.error('[getWixCollections] Error:', data);
-      return Response.json({ collections: [] });
-    }
 
-    const collections = (data.collections || []).map(c => ({
-      id: c.id || c._id,
-      name: c.name,
-      slug: c.slug,
-      productIds: c.productIds || [],
-    }));
+    const res = await wix.productsV3.searchProducts({}).catch(e => {
+      console.error('[getWixCollections] searchProducts:', e.message);
+      return { products: [] };
+    });
 
-    return Response.json({ collections });
+    const categoriesMap = new Map();
+    (res.products || []).forEach(p => {
+      (p.allCategoriesInfo?.categories || p.directCategoriesInfo?.categories || []).forEach(c => {
+        const cid = c._id || c.id;
+        if (cid && !categoriesMap.has(cid)) {
+          categoriesMap.set(cid, {
+            id: cid,
+            name: c.name || c.slug || 'Category',
+            slug: c.slug,
+            productIds: [],
+          });
+        }
+      });
+    });
+
+    return Response.json({ collections: Array.from(categoriesMap.values()) });
   } catch (err) {
     console.error('[getWixCollections] Exception:', err.message);
     return Response.json({ error: err.message, collections: [] }, { status: 500 });

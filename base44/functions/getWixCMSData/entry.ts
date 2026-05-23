@@ -1,20 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-
-async function safeJson(res) {
-  const text = await res.text();
-  try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
-}
-
-async function getAnonToken(clientId) {
-  const res = await fetch("https://www.wixapis.com/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, grantType: "anonymous" }),
-  });
-  const data = await safeJson(res);
-  if (!res.ok) throw new Error("Token error: " + JSON.stringify(data));
-  return data.access_token;
-}
+import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
+import { items } from 'npm:@wix/data@latest';
 
 function processWixImage(val, w = 600, h = 450) {
   if (!val) return null;
@@ -28,49 +13,26 @@ function processWixImage(val, w = 600, h = 450) {
 
 function processItem(item) {
   if (!item) return null;
-  // Handle both wrapped items (id + data) and flat items (direct fields)
   const isWrapped = item.data !== undefined && (item.id || item._id);
-  const itemId = item.id || item._id;
+  const itemId = item._id || item.id;
   const d = isWrapped ? (item.data || {}) : item;
   const processed = { _id: itemId, ...d };
-  
+
   for (const [key, val] of Object.entries(processed)) {
     if (!val) continue;
-    // Handle string image URLs
     if (typeof val === 'string' && val.startsWith('wix:image')) {
       processed[key] = processWixImage(val);
-    } 
-    // Handle object with image URL
-    else if (val && typeof val === 'object' && !Array.isArray(val)) {
-      // Check if this is a wrapped item
-      if (val.data && (val._id || val.id)) {
-        processed[key] = processItem(val);
-      } 
-      // Check for image URL in url/src.url properties
+    } else if (val && typeof val === 'object' && !Array.isArray(val)) {
+      if (val.data && (val._id || val.id)) processed[key] = processItem(val);
       else if (!val.data) {
-        if (val.url && typeof val.url === 'string' && val.url.startsWith('wix:image')) {
-          processed[key] = processWixImage(val.url);
-        } else if (val.src?.url && typeof val.src.url === 'string' && val.src.url.startsWith('wix:image')) {
-          processed[key] = processWixImage(val.src.url);
-        }
+        if (val.url && typeof val.url === 'string' && val.url.startsWith('wix:image')) processed[key] = processWixImage(val.url);
+        else if (val.src?.url && typeof val.src.url === 'string' && val.src.url.startsWith('wix:image')) processed[key] = processWixImage(val.src.url);
       }
-    } 
-    // Handle arrays (including referenced items arrays)
-    else if (Array.isArray(val)) {
+    } else if (Array.isArray(val)) {
       processed[key] = val.map(v => {
-        // If it's a wrapped item
-        if (v && typeof v === 'object' && v.data && (v._id || v.id)) {
-          return processItem(v);
-        }
-        // If it's a string image URL
-        if (typeof v === 'string' && v.startsWith('wix:image')) {
-          return processWixImage(v);
-        }
-        // If it's a plain object (flat referenced item), wrap and process
-        if (v && typeof v === 'object' && !v.data && (v._id || v.id)) {
-          const nested = { _id: v._id || v.id, data: v };
-          return processItem(nested);
-        }
+        if (v && typeof v === 'object' && v.data && (v._id || v.id)) return processItem(v);
+        if (typeof v === 'string' && v.startsWith('wix:image')) return processWixImage(v);
+        if (v && typeof v === 'object' && !v.data && (v._id || v.id)) return processItem({ _id: v._id || v.id, data: v });
         return v;
       });
     }
@@ -80,90 +42,47 @@ function processItem(item) {
 
 Deno.serve(async (req) => {
   try {
-    const clientId = Deno.env.get("WIX_CLIENT_ID");
-    const instanceId = Deno.env.get("WIX_INSTANCE_ID");
-    if (!clientId || !instanceId) return Response.json({ error: "Missing config" }, { status: 500 });
+    const clientId = Deno.env.get('WIX_CLIENT_ID');
+    if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
     const body = await req.json().catch(() => ({}));
     const { collectionId, slug, filter, sort, limit = 50, includeRefs = [] } = body;
+    if (!collectionId) return Response.json({ error: 'collectionId required' }, { status: 400 });
 
-    if (!collectionId) return Response.json({ error: "collectionId required" }, { status: 400 });
-
-    const accessToken = await getAnonToken(clientId);
-    const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'wix-site-id': instanceId,
-      'Content-Type': 'application/json',
-    };
-
-    // Build query filter
-    let queryFilter = filter || {};
-    if (slug) {
-      queryFilter = { slug: { $eq: slug } };
-    }
-
-    const queryBody = {
-      dataCollectionId: collectionId,
-      query: {
-        paging: { limit: slug ? 1 : limit },
-        ...(Object.keys(queryFilter).length > 0 ? { filter: queryFilter } : {}),
-        ...(sort ? { sort } : {}),
-      },
-      ...(includeRefs.length > 0 ? { includeReferencedItems: includeRefs } : {}),
-      returnTotalCount: true,
-    };
-
-    const res = await fetch('https://www.wixapis.com/wix-data/v2/items/query', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(queryBody),
+    const wix = createClient({
+      modules: { items },
+      auth: OAuthStrategy({ clientId }),
     });
-    const data = await safeJson(res);
 
-    if (!res.ok) {
-      console.error(`[getWixCMSData] Error querying ${collectionId}:`, JSON.stringify(data));
-      return Response.json({ error: data, items: [], total: 0 }, { status: res.status });
+    let query = wix.items.query(collectionId).limit(slug ? 1 : limit);
+    if (includeRefs.length > 0) {
+      includeRefs.forEach(ref => { query = query.include(ref); });
     }
-
-    // Build a map of referenced items by their field name and ID (already processed)
-    const refMap = {};
-    if (data.referencedItems && typeof data.referencedItems === 'object') {
-      for (const [fieldName, refItems] of Object.entries(data.referencedItems)) {
-        refMap[fieldName] = {};
-        (refItems || []).forEach(refItem => {
-          const processed = processItem(refItem);
-          refMap[fieldName][refItem.id] = processed;
-        });
+    if (slug) query = query.eq('slug', slug);
+    if (filter) {
+      for (const [k, v] of Object.entries(filter)) {
+        if (typeof v === 'object' && v.$eq !== undefined) query = query.eq(k, v.$eq);
+        else query = query.eq(k, v);
       }
     }
-
-    // Process main items and merge in referenced items
-    const items = (data.dataItems || []).map(item => {
-      // First merge raw referenced item data into the item before processing
-      const rawItem = { ...item };
-      if (includeRefs.length > 0 && data.referencedItems) {
-        includeRefs.forEach(refField => {
-          const rawVal = rawItem.data?.[refField];
-          if (rawVal && refMap[refField]) {
-            // Replace IDs with full processed referenced items
-            if (Array.isArray(rawVal)) {
-              rawItem.data[refField] = rawVal.map(id => refMap[refField][id] || id);
-            } else if (typeof rawVal === 'string' && refMap[refField][rawVal]) {
-              rawItem.data[refField] = refMap[refField][rawVal];
-            }
-          }
-        });
-      }
-      // Now process the item (including merged references)
-      return processItem(rawItem);
-    });
-    const total = data.totalCount || items.length;
-
-    if (slug) {
-      return Response.json({ item: items[0] || null });
+    if (sort) {
+      sort.forEach(s => {
+        if (s.order === 'DESC') query = query.descending(s.fieldName);
+        else query = query.ascending(s.fieldName);
+      });
     }
-    return Response.json({ items, total });
 
+    const res = await query.find().catch(e => {
+      console.error('[getWixCMSData] query:', e.message);
+      return { items: [], totalCount: 0 };
+    });
+
+    const rawItems = res.items || [];
+    const processed = rawItems.map(processItem);
+    const total = res.totalCount || processed.length;
+
+    if (slug) return Response.json({ item: processed[0] || null });
+    return Response.json({ items: processed, total });
   } catch (err) {
     console.error('[getWixCMSData] Exception:', err.message);
     return Response.json({ error: err.message, items: [], total: 0 }, { status: 500 });
