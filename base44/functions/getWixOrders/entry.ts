@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        filter: { 'buyerInfo.email': { $eq: user.email } },
+        filter: { 'buyerInfo.email': user.email },
         sort: [{ fieldName: '_createdDate', order: 'DESC' }],
         cursorPaging: { limit: 50 },
       }),
@@ -47,10 +47,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: searchData }, { status: searchRes.status });
     }
 
-    const orders = (searchData.orders || []).filter(o => {
-      const buyerEmail = o.buyerInfo?.email || '';
-      return buyerEmail.toLowerCase() === user.email.toLowerCase();
-    }).map(o => ({
+    const orders = (searchData.orders || []).map(o => ({
       id: o._id,
       number: o.number,
       createdDate: o._createdDate,
