@@ -12,30 +12,23 @@ export default function Missions() {
 
   useEffect(() => {
     Promise.all([
-      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions' }),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers' }),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', includeRefs: ['crew'] }),
       base44.functions.invoke('getWixCMSData', { collectionId: 'Planets' })
-    ]).then(([missionsRes, crewRes, planetsRes]) => {
+    ]).then(([missionsRes, planetsRes]) => {
       const missionsData = missionsRes.data.items || [];
-      const allCrew = crewRes.data.items || [];
       const allPlanets = planetsRes.data.items || [];
       
       const enrichedMissions = missionsData.map(m => {
-        // Same logic as MissionDetail
-        const assignedCrew = m.crewIds 
-          ? allCrew.filter(c => m.crewIds.includes(c._id))
-          : m.crew
-            ? allCrew.filter(c => m.crew.includes(c._id))
-            : [];
+        // crew is now included via includeRefs
+        const crewMembers = m.crew || [];
         return {
           ...m,
-          crewMembers: assignedCrew,
+          crewMembers,
           planetData: allPlanets.find(p => (p.name || p.title || '').toLowerCase() === (m.planet || '').toLowerCase())
         };
       });
       
       setMissions(enrichedMissions);
-      setCrew(allCrew);
     }).catch(err => console.error('Missions error:', err))
     .finally(() => setLoading(false));
   }, []);
@@ -104,12 +97,35 @@ export default function Missions() {
                         <p className="text-foreground/70 text-sm mb-4 line-clamp-2">{mission.description}</p>
                       )}
                       
-                      {mission.launchDate && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-xs text-muted-foreground font-mono uppercase">Launch</span>
-                          <span className="text-sm font-mono text-primary">{mission.launchDate?.split('T')[0]}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between flex-wrap gap-4 pt-2">
+                        {mission.crewMembers?.length > 0 && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-muted-foreground font-mono uppercase">Crew</span>
+                            <div className="flex gap-1 flex-wrap">
+                              {mission.crewMembers.map((c, ci) => {
+                                const cImage = c.image;
+                                const cName = c.name || 'Crew';
+                                return (
+                                  <div key={ci} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-sm overflow-hidden" title={cName}>
+                                    {cImage ? (
+                                      <img src={cImage} alt={cName} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span>🐱</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {mission.launchDate && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs text-muted-foreground font-mono uppercase">Launch</span>
+                            <span className="text-sm font-mono text-primary">{mission.launchDate?.split('T')[0]}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </Link>
                 </motion.div>
