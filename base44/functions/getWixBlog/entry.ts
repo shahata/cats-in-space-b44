@@ -91,9 +91,16 @@ Deno.serve(async (req) => {
 
     const res = await fetch(url, { headers });
     const data = await safeJson(res);
-    if (!res.ok) return Response.json({ error: data, posts: [] }, { status: res.status });
+    
+    console.log('[getWixBlog] Response:', res.status, JSON.stringify(data).substring(0, 500));
+    
+    if (!res.ok) {
+      console.error('[getWixBlog] API Error:', res.status, JSON.stringify(data));
+      return Response.json({ error: data, posts: [] }, { status: res.status });
+    }
 
     const posts = (data.posts || []).map(transformPost).filter(Boolean);
+    console.log('[getWixBlog] Found posts:', posts.length);
     return Response.json({ posts, total: data.metaData?.total || posts.length });
 
   } catch (err) {

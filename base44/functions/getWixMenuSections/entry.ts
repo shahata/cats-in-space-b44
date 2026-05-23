@@ -86,22 +86,23 @@ Deno.serve(async (req) => {
     });
     const sectionsData = await safeJson(sectionsRes);
     
+    console.log('[getWixMenuSections] Sections response:', res.status, JSON.stringify(sectionsData).substring(0, 500));
+    
     if (sectionsRes.ok) {
-      sections = (sectionsData.sections || sectionsData.menuSections || []).map(processMenuSection);
+      sections = (sectionsData.sections || []).map(processMenuSection);
+      console.log('[getWixMenuSections] Found sections:', sections.length);
     }
 
     // Fetch menu items
     if (includeItems) {
-      let itemsUrl = 'https://www.wixapis.com/restaurants/v1/menu-items';
-      if (sectionId) {
-        itemsUrl += `?sectionId=${sectionId}`;
-      }
-      
-      const itemsRes = await fetch(itemsUrl, { method: 'GET', headers });
+      const itemsRes = await fetch('https://www.wixapis.com/restaurants/v1/menu-items', { method: 'GET', headers });
       const itemsData = await safeJson(itemsRes);
       
+      console.log('[getWixMenuSections] Items response:', itemsRes.status, JSON.stringify(itemsData).substring(0, 500));
+      
       if (itemsRes.ok) {
-        items = (itemsData.items || itemsData.menuItems || []).map(processMenuItem);
+        items = (itemsData.items || []).map(processMenuItem);
+        console.log('[getWixMenuSections] Found items:', items.length);
       }
     }
 

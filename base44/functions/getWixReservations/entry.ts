@@ -85,11 +85,15 @@ Deno.serve(async (req) => {
       });
       const data = await safeJson(res);
       
+      console.log('[getWixReservations] Locations response:', res.status, JSON.stringify(data).substring(0, 500));
+      
       if (!res.ok) {
+        console.error('[getWixReservations] Locations error:', res.status, data);
         return Response.json({ locations: [] });
       }
       
       const locations = (data.locations || []).map(processReservationLocation);
+      console.log('[getWixReservations] Found locations:', locations.length);
       return Response.json({ locations });
     }
 

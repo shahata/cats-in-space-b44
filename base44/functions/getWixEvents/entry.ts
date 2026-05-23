@@ -18,17 +18,33 @@ async function getAnonToken(clientId) {
 
 function processEvent(event) {
   if (!event) return null;
+  
+  // Extract date/time from various Wix Events API structures
+  const schedule = event.schedule || event.eventSchedule || {};
+  const startDate = event.startDate || schedule.startDate || event.time?.startDate;
+  const startTime = event.startTime || schedule.startTime || (startDate ? startDate.substring(11, 16) : null);
+  
+  // Get image URL
+  let image = null;
+  if (event.mainImage?.url) image = event.mainImage.url;
+  else if (event.image?.url) image = event.image.url;
+  else if (event.coverImage?.url) image = event.coverImage.url;
+  else if (event.media?.mainMedia?.image?.url) image = event.media.mainMedia.image.url;
+  
+  // Get pricing
+  const pricing = event.ticketPricing?.price || event.price || {};
+  
   return {
     id: event._id || event.id,
-    name: event.title || event.name,
-    description: event.description,
-    startDate: event.startDate || event.schedule?.startDate,
-    endDate: event.endDate || event.schedule?.endDate,
-    startTime: event.startTime || event.schedule?.startTime,
-    location: event.location?.name || event.venue,
-    image: event.mainImage?.url || event.image?.url || event.coverImage?.url,
-    price: event.ticketPricing?.price?.value || event.price?.amount || 0,
-    currency: event.ticketPricing?.price?.currency || 'USD',
+    name: event.title || event.name || 'Untitled Event',
+    description: event.description || '',
+    startDate: startDate,
+    endDate: event.endDate || schedule.endDate,
+    startTime: startTime,
+    location: event.location?.name || event.venue || event.locationName || '',
+    image: image,
+    price: pricing.value || pricing.amount || 0,
+    currency: pricing.currency || 'USD',
     availableTickets: event.ticketInventory?.availableTickets || event.availableSeats,
   };
 }
@@ -58,14 +74,28 @@ Deno.serve(async (req) => {
     const res = await fetch(url, { method: 'GET', headers });
     const data = await safeJson(res);
 
+    console.log('[getWixEvents] Raw response keys:', Object.keys(data));
+    if (data.events && data.events.length > 0) {
+      console.log('[getWixEvents] First event structure:', JSON.stringify(data.events[0]).substring(0, 2000));
+    }
+
     if (!res.ok) {
-      console.error('[getWixEvents] Error:', JSON.stringify(data));
+      console.error('[getWixEvents] Error:', res.status, JSON.stringify(data));
       return Response.json({ events: [], event: null });
     }
 
     // Handle both single event and list responses
-    const events = data.events || (data.event ? [data.event] : []);
-    const processed = events.map(processEvent);
+    let events = [];
+    if (data.events && Array.isArray(data.events)) {
+      events = data.events;
+    } else if (data.event) {
+      events = [data.event];
+    } else if (data.items && Array.isArray(data.items)) {
+      events = data.items;
+    }
+    
+    console.log('[getWixEvents] Found events:', events.length);
+    const processed = events.map(processEvent).filter(Boolean);
 
     if (eventId) {
       return Response.json({ event: processed[0] || null, events: [] });

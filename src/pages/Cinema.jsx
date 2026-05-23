@@ -27,8 +27,8 @@ export default function Cinema() {
     try {
       const res = await base44.functions.invoke('getWixConfig', {});
       const siteId = res.data.siteId;
-      // Redirect to Wix events booking
-      const bookingUrl = `https://${siteId}.wixsite.com/events?eventId=${selectedEvent.id}&date=${selectedDate}&time=${selectedTime}&tickets=${ticketCount}`;
+      // Redirect to Wix events - use proper URL format
+      const bookingUrl = `https://www.wix.com/events?siteId=${siteId}&eventId=${selectedEvent.id}&date=${selectedDate}&time=${selectedTime}&tickets=${ticketCount}`;
       window.location.href = bookingUrl;
     } catch (err) {
       console.error('Booking error:', err);
@@ -39,11 +39,17 @@ export default function Cinema() {
   const today = new Date().toISOString().split('T')[0];
 
   // Extract unique dates from events
-  const availableDates = [...new Set(events.map(e => e.startDate?.split('T')[0]).filter(Boolean))];
+  const availableDates = [...new Set(events.map(e => {
+    const date = e.startDate || e.schedule?.startDate;
+    return date?.split('T')[0];
+  }).filter(Boolean))];
 
   // Extract times for selected date
-  const eventsOnDate = events.filter(e => e.startDate?.startsWith(selectedDate));
-  const availableTimes = [...new Set(eventsOnDate.map(e => e.startTime))];
+  const eventsOnDate = events.filter(e => {
+    const date = e.startDate || e.schedule?.startDate;
+    return date?.startsWith(selectedDate);
+  });
+  const availableTimes = [...new Set(eventsOnDate.map(e => e.startTime || e.schedule?.startTime))];
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -88,16 +94,16 @@ export default function Cinema() {
                       <h3 className="font-display text-lg tracking-wider text-foreground uppercase mb-1">{event.name}</h3>
                       <p className="text-muted-foreground text-sm mb-2 line-clamp-2">{event.description}</p>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {event.startDate && (
+                        {(event.startDate || event.schedule?.startDate) && (
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {event.startDate.split('T')[0]}
+                            {(event.startDate || event.schedule.startDate).split('T')[0]}
                           </span>
                         )}
-                        {event.startTime && (
+                        {(event.startTime || event.schedule?.startTime) && (
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {event.startTime}
+                            {event.startTime || event.schedule.startTime}
                           </span>
                         )}
                         {event.location && (

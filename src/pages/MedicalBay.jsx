@@ -70,8 +70,8 @@ export default function MedicalBay() {
     try {
       const res = await base44.functions.invoke('getWixConfig', {});
       const siteId = res.data.siteId;
-      // Redirect to Wix booking page with pre-selected service
-      const bookingUrl = `https://${siteId}.wixsite.com/bookings?serviceId=${selectedService.id}&date=${selectedDate}&time=${selectedTime}`;
+      // Redirect to Wix bookings - use proper URL format
+      const bookingUrl = `https://www.wix.com/bookings?siteId=${siteId}&serviceId=${selectedService.id}&date=${selectedDate}&time=${selectedTime}`;
       window.location.href = bookingUrl;
     } catch (err) {
       console.error('Booking error:', err);
