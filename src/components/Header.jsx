@@ -45,7 +45,19 @@ export default function Header() {
         </Link>
         <div className="flex items-center gap-5">
         {user ? (
-          <span className="text-sm text-foreground/70 font-body hidden md:block">{user.full_name || user.email}</span>
+          <div className="hidden md:flex items-center gap-4">
+            <span className="text-sm text-foreground/70 font-body">{user.full_name || user.email}</span>
+            {user.role === 'admin' && (
+              <a
+                href="https://manage.wix.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-mono tracking-widest uppercase text-primary hover:text-primary/70 transition-colors border border-primary/30 px-2.5 py-1 hover:border-primary/60"
+              >
+                Manage Store
+              </a>
+            )}
+          </div>
         ) : (
           <button onClick={() => base44.auth.redirectToLogin()} className="text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-foreground transition-colors hidden md:block">Sign In</button>
         )}
