@@ -47,9 +47,9 @@ Deno.serve(async (req) => {
     };
 
     // Try Wix Services API
-    let url = 'https://www.wixapis.com/bookings/v1/services';
+    let url = 'https://www.wixapis.com/v1/bookings/services';
     if (serviceId) {
-      url = `https://www.wixapis.com/bookings/v1/services/${serviceId}`;
+      url = `https://www.wixapis.com/v1/bookings/services/${serviceId}`;
     }
 
     const res = await fetch(url, { method: 'GET', headers });
@@ -61,8 +61,17 @@ Deno.serve(async (req) => {
     }
 
     // Handle both single service and list responses
-    const services = data.services || (data.service ? [data.service] : []);
-    const processed = services.map(processService);
+    let services = [];
+    if (data.services && Array.isArray(data.services)) {
+      services = data.services;
+    } else if (data.service) {
+      services = [data.service];
+    } else if (Array.isArray(data)) {
+      services = data;
+    } else if (data.items && Array.isArray(data.items)) {
+      services = data.items;
+    }
+    const processed = services.map(processService).filter(s => s);
 
     if (serviceId) {
       return Response.json({ service: processed[0] || null, services: [] });
