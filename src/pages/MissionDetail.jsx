@@ -10,13 +10,15 @@ export default function MissionDetail() {
   const { slug } = useParams();
   const [mission, setMission] = useState(null);
   const [crew, setCrew] = useState([]);
+  const [planet, setPlanet] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', slug }),
-      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers' })
-    ]).then(([missionRes, crewRes]) => {
+      base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers' }),
+      base44.functions.invoke('getWixCMSData', { collectionId: 'Planets' })
+    ]).then(([missionRes, crewRes, planetRes]) => {
       const missionData = missionRes.data.item;
       if (missionData) {
         setMission(missionData);
@@ -28,6 +30,12 @@ export default function MissionDetail() {
             ? allCrew.filter(c => missionData.crew.includes(c._id))
             : allCrew;
         setCrew(assignedCrew);
+        // Find the planet by name match
+        const allPlanets = planetRes.data.items || [];
+        const destPlanet = allPlanets.find(p => 
+          (p.name || p.title || '').toLowerCase() === (missionData.planet || '').toLowerCase()
+        );
+        setPlanet(destPlanet || null);
       }
     }).catch(() => {}).finally(() => setLoading(false));
   }, [slug]);
@@ -109,7 +117,16 @@ export default function MissionDetail() {
               <div className="space-y-3">
                 {[
                   ['Status', mission.status],
-                  ['Destination', destName ? <Link key="dest" to={`/planets/${planetSlug}`} className="hover:underline">{destName}</Link> : null],
+                  ['Destination', destName ? (
+                    <Link key="dest" to={`/planets/${planetSlug}`} className="flex items-center gap-2 hover:underline">
+                      {planet?.mainImage || planet?.photo || planet?.image ? (
+                        <img src={planet.mainImage || planet.photo || planet.image} alt={destName} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">🪐</div>
+                      )}
+                      <span>{destName}</span>
+                    </Link>
+                  ) : null],
                   ['Launch Date', mission.launchDate?.split('T')[0] || mission.launchDate],
                 ].map(([label, val]) => val ? (
                   <div key={label} className="border-t border-border pt-3 first:border-0 first:pt-0">
