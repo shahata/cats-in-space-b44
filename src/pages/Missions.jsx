@@ -21,22 +21,15 @@ export default function Missions() {
       const allPlanets = planetsRes.data.items || [];
       
       const enrichedMissions = missionsData.map(m => {
-        // Try multiple possible crew field names and handle different ID formats
-        const crewField = m.crewIds || m.crew || m.crew_member_ids || m.crewMemberIds || m.crew_members || m.crewMembers || [];
-        let crewMembers = [];
-        if (Array.isArray(crewField)) {
-          // Direct ID match
-          crewMembers = allCrew.filter(c => crewField.includes(c._id));
-          // If no matches, try matching by title/name as fallback
-          if (crewMembers.length === 0 && crewField.length > 0) {
-            crewMembers = allCrew.filter(c => crewField.some(id => 
-              c._id?.includes(id) || id.includes(c._id?.split('-')[0] || '')
-            ));
-          }
-        }
+        // Same logic as MissionDetail
+        const assignedCrew = m.crewIds 
+          ? allCrew.filter(c => m.crewIds.includes(c._id))
+          : m.crew
+            ? allCrew.filter(c => m.crew.includes(c._id))
+            : [];
         return {
           ...m,
-          crewMembers,
+          crewMembers: assignedCrew,
           planetData: allPlanets.find(p => (p.name || p.title || '').toLowerCase() === (m.planet || '').toLowerCase())
         };
       });
