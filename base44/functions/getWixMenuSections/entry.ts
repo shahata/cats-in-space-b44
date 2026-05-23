@@ -37,26 +37,54 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // Fetch menu sections
-    const sectionsRes = await fetch('https://www.wixapis.com/restaurants/v1/menu-sections', { 
-      method: 'GET', 
-      headers 
+    // Query menus (not menu-sections)
+    const menusRes = await fetch('https://www.wixapis.com/restaurants/menus-menu/v1/menus/query', { 
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query: {} }),
+    });
+    const menusData = await safeJson(menusRes);
+    
+    const menus = (menusData.menus || []);
+    
+    if (menus.length === 0) {
+      return Response.json({ 
+        sections: [],
+        items: [],
+        menuStructure: [],
+        menus: [],
+      });
+    }
+
+    // Get the first menu's sections
+    const menu = menus[0];
+    const sectionIds = menu.sectionIds || [];
+    
+    // Query all sections
+    const sectionsRes = await fetch('https://www.wixapis.com/restaurants/menus-section/v1/sections/query', { 
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query: {} }),
     });
     const sectionsData = await safeJson(sectionsRes);
     
-    const sections = (sectionsData.sections || []).map(s => ({
-      id: s._id || s.id,
-      name: s.name || s.title,
-      description: s.description,
-      image: s.media?.image?.url,
-    }));
+    const sections = (sectionsData.sections || [])
+      .filter(s => sectionIds.includes(s.id))
+      .map(s => ({
+        id: s._id || s.id,
+        name: s.name || s.title,
+        description: s.description,
+        image: s.additionalImages?.[0]?.url || s.image?.url,
+        itemIds: s.itemIds || [],
+      }));
 
     let items = [];
     if (includeItems) {
-      // Fetch menu items
-      const itemsRes = await fetch('https://www.wixapis.com/restaurants/v1/menu-items', { 
-        method: 'GET', 
-        headers 
+      // Query menu items
+      const itemsRes = await fetch('https://www.wixapis.com/restaurants/menus-item/v1/items/query', { 
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query: {} }),
       });
       const itemsData = await safeJson(itemsRes);
       
@@ -67,7 +95,7 @@ Deno.serve(async (req) => {
         price: item.price?.value || 0,
         currency: item.price?.currency || 'USD',
         image: item.media?.image?.url,
-        categoryId: item.categoryId,
+        categoryId: item.sectionId,
         available: item.inStock !== false,
       }));
     }
@@ -82,6 +110,7 @@ Deno.serve(async (req) => {
       sections,
       items,
       menuStructure,
+      menus,
     });
   } catch (err) {
     console.error('[getWixMenuSections] Error:', err.message);

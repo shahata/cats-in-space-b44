@@ -38,7 +38,7 @@ export default function Restaurant() {
           const allItems = res.data.items || [];
           
           setMenuItems(allItems);
-          setCategories(sections.map(s => s.name));
+          setCategories(sections);
         })
         .catch(() => {})
         .finally(() => setLoading(false));
@@ -61,7 +61,7 @@ export default function Restaurant() {
 
   const filteredItems = selectedCategory === 'all' 
     ? menuItems 
-    : menuItems.filter(item => item.category === selectedCategory);
+    : menuItems.filter(item => item.categoryId === selectedCategory);
 
   const addToCart = (item) => {
     setCart(prev => ({
@@ -200,15 +200,15 @@ export default function Restaurant() {
               </button>
               {categories.map(cat => (
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
                   className={`px-4 py-2 text-xs font-mono tracking-widest uppercase border transition-colors ${
                     selectedCategory === cat
                       ? 'border-primary text-primary bg-primary/10'
                       : 'border-border text-muted-foreground hover:border-primary/40'
                   }`}
                 >
-                  {cat}
+                  {cat.name}
                 </button>
               ))}
             </div>

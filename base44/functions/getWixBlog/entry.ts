@@ -1,110 +1,134 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-
 async function safeJson(res) {
   const text = await res.text();
   try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
 }
 
-async function getAnonToken(clientId) {
+async function getAccessToken(clientId, clientSecret) {
   const res = await fetch("https://www.wixapis.com/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId, grantType: "anonymous" }),
+    body: JSON.stringify({ 
+      clientId, 
+      clientSecret,
+      grantType: "client_credentials",
+    }),
   });
   const data = await safeJson(res);
   if (!res.ok) throw new Error("Token error: " + JSON.stringify(data));
   return data.access_token;
 }
 
-function processWixImage(val, w = 800, h = 500) {
-  if (!val) return null;
-  const url = typeof val === 'string' ? val : (val?.url || val?.src?.url || '');
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  const match = url.match(/wix:image:\/\/v1\/([^/]+)\/(.*)/);
-  if (match) return `https://static.wixstatic.com/media/${match[1]}/v1/fill/w_${w},h_${h},al_c,q_90,enc_auto/${match[2]}`;
-  return null;
-}
-
-function transformPost(post) {
+function processPost(post) {
   if (!post) return null;
+  
+  // Extract image URL
+  let imageUrl = null;
+  if (post.featuredImage) {
+    imageUrl = post.featuredImage.url;
+  } else if (post.image) {
+    imageUrl = typeof post.image === 'string' ? post.image : post.image.url;
+  }
+  
+  // Extract categories
+  const categories = (post.categories || []).map(c => c.name || c).filter(Boolean);
+  
   return {
-    id: post.id,
+    id: post._id || post.id,
+    title: post.title || 'Untitled Post',
     slug: post.slug,
-    title: post.title,
-    excerpt: post.excerpt,
-    content: post.richContent?.nodes ? null : post.content || null,
-    coverImage: processWixImage(post.coverMedia?.image?.url || post.coverMedia?.thumbnail?.url),
-    author: post.owner?.authorName || post.owner?.name || 'Unknown',
-    publishedDate: post.firstPublishedDate || post.publishedDate,
-    minutesToRead: post.minutesToRead || 1,
-    categories: (post.categoryIds || []),
-    categoryLabels: (post.categories || []).map(c => c.label || c.title || c.name || ''),
-    viewCount: post.viewCount || 0,
-    likeCount: post.likeCount || 0,
-    commentCount: post.commentCount || 0,
-    pricingPlanIds: post.pricingPlanIds || [],
+    excerpt: post.excerpt || post.summary || '',
+    content: post.body || post.content || '',
+    author: post.author?.name || post.authorName || 'Unknown',
+    publishedDate: post.datePublished || post.createdDate,
+    updatedDate: post.dateUpdated || post.updatedDate,
+    image: imageUrl,
+    categories,
+    tags: post.tags || [],
+    readTime: post.readTime || null,
+    status: post.status || 'published',
   };
 }
 
 Deno.serve(async (req) => {
   try {
     const clientId = Deno.env.get("WIX_CLIENT_ID");
-    const instanceId = Deno.env.get("WIX_INSTANCE_ID");
-    if (!clientId || !instanceId) return Response.json({ error: "Missing config" }, { status: 500 });
+    const clientSecret = Deno.env.get("WIX_CLIENT_SECRET");
+    
+    if (!clientId || !clientSecret) {
+      return Response.json({ error: "Missing WIX_CLIENT_ID or WIX_CLIENT_SECRET" }, { status: 500 });
+    }
 
     const body = await req.json().catch(() => ({}));
-    const { action, slug, categoryId, limit = 20, offset = 0 } = body;
+    const { postId, category, limit = 50 } = body;
 
-    const accessToken = await getAnonToken(clientId);
+    const accessToken = await getAccessToken(clientId, clientSecret);
     const headers = {
       'Authorization': `Bearer ${accessToken}`,
-      'wix-site-id': instanceId,
+      'wix-site-id': clientId,
       'Content-Type': 'application/json',
     };
 
-    // Fetch single post by slug
-    if (action === 'getPost' && slug) {
-      const res = await fetch(`https://www.wixapis.com/blog/v3/posts/slugs/${encodeURIComponent(slug)}?fieldsets=FULL`, { headers });
+    // Get single post
+    if (postId) {
+      const res = await fetch(`https://www.wixapis.com/v3/posts/${postId}`, { 
+        method: 'GET', 
+        headers 
+      });
       const data = await safeJson(res);
-      if (!res.ok) return Response.json({ error: data }, { status: res.status });
-      return Response.json({ post: transformPost(data.post) });
+      
+      if (!res.ok) {
+        console.error('[getWixBlog] Single post error:', res.status, data);
+        return Response.json({ post: null, posts: [] });
+      }
+      
+      return Response.json({ 
+        post: processPost(data.post || data),
+        posts: []
+      });
     }
 
-    // Fetch categories
-    if (action === 'getCategories') {
-      const res = await fetch('https://www.wixapis.com/blog/v3/categories?fieldsets=URL', { headers });
-      const data = await safeJson(res);
-      if (!res.ok) return Response.json({ categories: [] });
-      const cats = (data.categories || []).map(c => ({
-        id: c.id,
-        label: c.label || c.title,
-        slug: c.slug,
-        postCount: c.postCount,
-      }));
-      return Response.json({ categories: cats });
-    }
+    // Query posts
+    const queryBody = {
+      query: {
+        filter: category ? { categoryIds: { $hasSome: [category] } } : {},
+        sort: [{ fieldName: 'firstPublishedDate', order: 'DESC' }],
+        limit,
+      },
+    };
 
-    // Fetch posts list
-    let url = `https://www.wixapis.com/blog/v3/posts?fieldsets=FULL&paging.limit=${limit}&paging.offset=${offset}`;
-    if (categoryId) url += `&categoryIds[]=${encodeURIComponent(categoryId)}`;
-
-    const res = await fetch(url, { headers });
+    const res = await fetch('https://www.wixapis.com/blog/v3/posts/query', { 
+      method: 'POST',
+      headers,
+      body: JSON.stringify(queryBody),
+    });
     const data = await safeJson(res);
-    
-    console.log('[getWixBlog] Response:', res.status, JSON.stringify(data).substring(0, 500));
-    
+
     if (!res.ok) {
-      console.error('[getWixBlog] API Error:', res.status, JSON.stringify(data));
-      return Response.json({ error: data, posts: [] }, { status: res.status });
+      console.error('[getWixBlog] Query error:', res.status, data);
+      return Response.json({ posts: [], post: null });
     }
 
-    const posts = (data.posts || []).map(transformPost).filter(Boolean);
-    console.log('[getWixBlog] Found posts:', posts.length);
-    return Response.json({ posts, total: data.metaData?.total || posts.length });
+    const posts = (data.posts || []).map(processPost).filter(p => p);
+
+    // Get categories
+    const categoriesRes = await fetch('https://www.wixapis.com/v3/categories', { 
+      method: 'GET', 
+      headers 
+    });
+    const categoriesData = await safeJson(categoriesRes);
+    const categories = (categoriesData.categories || []).map(c => ({
+      id: c._id || c.id,
+      name: c.name,
+      slug: c.slug,
+    }));
+
+    return Response.json({ 
+      posts,
+      categories,
+    });
 
   } catch (err) {
-    console.error('[getWixBlog] Exception:', err.message);
+    console.error('[getWixBlog] Error:', err.message);
     return Response.json({ error: err.message, posts: [] }, { status: 500 });
   }
 });
