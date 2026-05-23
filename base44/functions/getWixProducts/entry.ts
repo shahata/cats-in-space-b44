@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
         formattedPrice: p.priceData?.formatted?.price || p.priceData?.formatted?.discountedPrice || "",
         currency: p.priceData?.currency || "",
         image: p.media?.mainMedia?.image?.url || p.media?.main?.image?.url || "",
+        gallery: (p.media?.items || []).map(item => item.image?.url || item.thumbnail?.url).filter(Boolean),
         wixId: p.id,
         hasVariants,
         inStock,

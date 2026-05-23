@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag } from 'lucide-react';
+import { ShoppingBag, User } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 
 export default function Header() {
   const [count, setCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    base44.auth.isAuthenticated().then(authed => {
+      if (authed) base44.auth.me().then(setUser).catch(() => {});
+    });
+  }, []);
 
   useEffect(() => {
     const sync = async () => {
@@ -35,6 +43,12 @@ export default function Header() {
         <Link to="/" className="font-display text-xl md:text-2xl tracking-tight text-foreground hover:text-primary transition-colors">
           Atelier Essence
         </Link>
+        <div className="flex items-center gap-5">
+        {user ? (
+          <span className="text-sm text-foreground/70 font-body hidden md:block">{user.full_name || user.email}</span>
+        ) : (
+          <button onClick={() => base44.auth.redirectToLogin()} className="text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-foreground transition-colors hidden md:block">Sign In</button>
+        )}
         <Link to="/cart" className="relative group flex items-center gap-2 text-foreground hover:text-primary transition-colors">
           <ShoppingBag className="w-5 h-5" strokeWidth={1.5} />
           {count > 0 && (
@@ -43,6 +57,7 @@ export default function Header() {
             </span>
           )}
         </Link>
+        </div>
       </div>
     </header>
   );
