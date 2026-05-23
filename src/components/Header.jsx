@@ -3,24 +3,18 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ChevronDown, ExternalLink, Package, LogOut } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
+const SITE_ID = '7e33beec-e497-477c-a3bb-63eadde7ac3c';
+
 export default function Header() {
   const [count, setCount] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser] = useState(null);
-  const [siteId, setSiteId] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
     base44.auth.isAuthenticated().then(authed => {
-      if (authed) {
-        base44.auth.me().then(u => {
-          setUser(u);
-          base44.functions.invoke('getWixConfig', {})
-            .then(res => setSiteId(res.data.siteId || ''))
-            .catch(() => {});
-        }).catch(() => {});
-      }
+      if (authed) base44.auth.me().then(u => setUser(u)).catch(() => {});
     });
   }, []);
 
@@ -54,9 +48,7 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const manageUrl = siteId
-    ? `https://manage.wix.com/dashboard/${siteId}`
-    : 'https://manage.wix.com/';
+  const manageUrl = `https://manage.wix.com/dashboard/${SITE_ID}`;
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-background/80 backdrop-blur-xl border-b border-border/50' : 'bg-transparent'}`}>
