@@ -5,88 +5,51 @@ async function safeJson(res) {
   try { return text ? JSON.parse(text) : {}; } catch { return { _raw: text }; }
 }
 
-// Generate PKCE code verifier (random 43-128 char string)
-function generateCodeVerifier() {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return btoa(String.fromCharCode(...array)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// Generate code challenge from verifier (SHA-256 base64url)
-async function generateCodeChallenge(verifier) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-async function getMemberTokens(visitorAccessToken, instanceId, clientId, email, fullName) {
-  // Step 1: Sign-On server-to-server (no password needed)
-  const nameParts = (fullName || '').split(' ');
-  const signOnRes = await fetch('https://www.wixapis.com/_api/iam/authentication/v2/sign-on', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${visitorAccessToken}`, 'wix-site-id': instanceId, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      loginId: { email },
-      profile: { firstName: nameParts[0] || '', lastName: nameParts.slice(1).join(' ') || '' },
-      mergeExistingContact: true,
-      verifyEmail: true,
-    }),
-  });
-  const signOnData = await safeJson(signOnRes);
-  console.log('[checkout] sign-on status:', signOnRes.status, 'has sessionToken:', !!signOnData.sessionToken);
-  if (!signOnRes.ok || !signOnData.sessionToken) return null;
-
-  // Step 2: PKCE authorize with prompt=none (auto-redirects since user has session)
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  const state = crypto.randomUUID();
-  // Use the Wix site URL as redirect_uri (it must be registered in Wix OAuth app settings)
-  const redirectUri = `https://www.wix.com/`;
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: 'code',
-    scope: 'offline_access',
-    redirect_uri: redirectUri,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256',
-    session_token: signOnData.sessionToken,
-    prompt: 'none',
-    state,
-    response_mode: 'query',
-  });
-
-  const authRes = await fetch(`https://www.wixapis.com/oauth2/authorize?${params}`, { redirect: 'manual' });
-  console.log('[checkout] auth redirect status:', authRes.status, 'location:', authRes.headers.get('location')?.slice(0, 100));
-
-  if (authRes.status < 300 || authRes.status >= 400) return null;
-  const location = authRes.headers.get('location');
-  if (!location) return null;
-
-  const locationUrl = new URL(location);
-  const code = locationUrl.searchParams.get('code');
-  const returnedState = locationUrl.searchParams.get('state');
-  console.log('[checkout] got code:', !!code, 'state match:', returnedState === state);
-  if (!code || returnedState !== state) return null;
-
-  // Step 3: Exchange code for member tokens
-  const tokenRes = await fetch('https://www.wixapis.com/oauth2/token', {
+async function getAdminToken(clientId, clientSecret) {
+  const res = await fetch('https://www.wixapis.com/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      clientId,
-      grantType: 'authorization_code',
-      code,
-      codeVerifier,
-      redirectUri,
-    }),
+    body: JSON.stringify({ clientId, clientSecret, grantType: 'client_credentials' }),
+  });
+  const data = await safeJson(res);
+  if (!res.ok) throw new Error('Failed to get admin token: ' + JSON.stringify(data));
+  return data.access_token;
+}
+
+async function getMemberTokens(instanceId, clientId, clientSecret, email) {
+  // Step 1: get admin token
+  const adminToken = await getAdminToken(clientId, clientSecret);
+  const adminHeaders = { 'Authorization': `Bearer ${adminToken}`, 'wix-site-id': instanceId, 'Content-Type': 'application/json' };
+
+  // Step 2: find member by loginEmail
+  const memberRes = await fetch('https://www.wixapis.com/members/v1/members/query', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({ query: { filter: JSON.stringify({ 'loginEmail': { '$eq': email } }) } }),
+  });
+  const memberData = await safeJson(memberRes);
+  console.log('[checkout] member query status:', memberRes.status, 'count:', memberData.members?.length ?? memberData.total ?? 0);
+  if (!memberRes.ok || !memberData.members?.length) return null;
+
+  const memberId = memberData.members[0].id || memberData.members[0]._id;
+  console.log('[checkout] memberId found:', memberId);
+  if (!memberId) return null;
+
+  // Step 3: generate member token using admin API
+  const tokenRes = await fetch('https://www.wixapis.com/iam/v1/tokens/member-token-by-id', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({ memberId }),
   });
   const tokenData = await safeJson(tokenRes);
-  console.log('[checkout] token exchange status:', tokenRes.status, 'has access_token:', !!tokenData.access_token);
-  if (!tokenRes.ok || !tokenData.access_token) return null;
+  console.log('[checkout] member token status:', tokenRes.status, JSON.stringify(tokenData).slice(0, 200));
+  if (!tokenRes.ok) return null;
 
-  return { accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token };
+  const access = tokenData.accessToken || tokenData.access_token || tokenData.token?.accessToken;
+  const refresh = tokenData.refreshToken || tokenData.refresh_token || tokenData.token?.refreshToken;
+  if (!access) return null;
+
+  return { accessToken: access, refreshToken: refresh };
 }
 
 async function getNewVisitorTokens(clientId) {
@@ -255,11 +218,11 @@ Deno.serve(async (req) => {
       const checkoutId = checkoutData.checkoutId;
 
       // Step 2: try to get member tokens if user is logged in
-      const userFullName = body.userFullName || '';
       let memberTokens = null;
-      if (userEmail && accessToken) {
+      if (userEmail) {
         try {
-          memberTokens = await getMemberTokens(accessToken, instanceId, clientId, userEmail, userFullName);
+          const clientSecret = Deno.env.get('WIX_CLIENT_SECRET');
+          memberTokens = await getMemberTokens(instanceId, clientId, clientSecret, userEmail);
         } catch (e) { console.log('[checkout] member token error:', e.message); }
       }
 
