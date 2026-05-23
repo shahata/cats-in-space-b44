@@ -1,5 +1,22 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+async function getWixAccessToken(clientId) {
+  const tokenResponse = await fetch("https://www.wixapis.com/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clientId: clientId,
+      grantType: "anonymous",
+    }),
+  });
+
+  const tokenData = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    throw new Error("Failed to get Wix access token: " + JSON.stringify(tokenData));
+  }
+  return tokenData.access_token;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -16,35 +33,20 @@ Deno.serve(async (req) => {
     }
 
     const clientId = Deno.env.get("WIX_CLIENT_ID");
-    const clientSecret = Deno.env.get("WIX_CLIENT_SECRET");
+    const instanceId = Deno.env.get("WIX_INSTANCE_ID");
 
-    if (!clientId || !clientSecret) {
+    if (!clientId || !instanceId) {
       return Response.json({ error: "Missing Wix credentials" }, { status: 500 });
     }
 
-    // Get access token
-    const tokenResponse = await fetch("https://www.wixapis.com/oauth/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    });
-
-    const tokenData = await tokenResponse.json();
-    if (!tokenResponse.ok) {
-      return Response.json({ error: "Failed to get access token" }, { status: 500 });
-    }
-
-    const accessToken = tokenData.access_token;
+    const accessToken = await getWixAccessToken(clientId);
 
     // Create checkout
     const checkoutResponse = await fetch("https://www.wixapis.com/ecom/v1/checkouts", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
+        "wix-site-id": instanceId,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -83,8 +85,8 @@ Deno.serve(async (req) => {
     }
 
     return Response.json({
-      checkoutId: checkoutData.checkout.id,
-      checkoutUrl: checkoutData.checkout.checkoutUrl,
+      checkoutId: checkoutData.checkout?.id,
+      checkoutUrl: checkoutData.checkout?.checkoutUrl,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
