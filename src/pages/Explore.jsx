@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 const facilities = [
   {
     deck: 'DECK 2',
-    image: 'https://static.wixstatic.com/media/a2b5c3_supply_depot.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_supply_depot.jpg',
+    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/d0c360925_store.png',
     name: 'Supply Depot',
     description: 'Gear up for the mission — tactical hairballs, zero-gravity cat trees, and nebula-nip from our shop.',
     link: '/',
@@ -13,7 +13,7 @@ const facilities = [
   },
   {
     deck: 'DECK 3',
-    image: 'https://static.wixstatic.com/media/a2b5c3_medical_bay.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_medical_bay.jpg',
+    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/526689902_clinic.png',
     name: 'Medical Bay',
     description: 'Routine checkups, vaccinations against alien parasites, and that annoying hairball cough.',
     link: '/crew',
@@ -21,7 +21,7 @@ const facilities = [
   },
   {
     deck: 'DECK 5',
-    image: 'https://static.wixstatic.com/media/a2b5c3_cosmic_kitchen.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_cosmic_kitchen.jpg',
+    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/236dac4c5_restaurant.png',
     name: 'The Cosmic Kitchen',
     description: 'Intergalactic cuisine, pickup and delivery across the ship. The Nebula Nachos are legendary.',
     link: '/blog',
@@ -29,7 +29,7 @@ const facilities = [
   },
   {
     deck: 'DECK 7',
-    image: 'https://static.wixstatic.com/media/a2b5c3_nebula_theater.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_nebula_theater.jpg',
+    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/b5b5cdceb_cinema.png',
     name: 'The Nebula Theater',
     description: 'Weekly screenings of cat-themed classics — Star Paws, The Meowtrix, Cat-ablanca — every weeknight at 20:00 sharp.',
     link: '/blog',
@@ -78,9 +78,9 @@ export default function Explore() {
         {/* Navigation sections */}
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { image: 'https://static.wixstatic.com/media/a2b5c3_planet_db.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_planet_db.jpg', title: 'Planet Database', desc: 'All surveyed worlds ranked by habitability for feline life.', link: '/planets', linkText: 'Explore Planets →' },
-            { image: 'https://static.wixstatic.com/media/a2b5c3_crew_roster.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_crew_roster.jpg', title: 'Crew Roster', desc: 'The bravest cats to ever leave a perfectly good cardboard box behind.', link: '/crew', linkText: 'Meet the Crew →' },
-            { image: 'https://static.wixstatic.com/media/a2b5c3_mission_ctrl.jpg/v1/fill/w_600,h_400,al_c,q_80/a2b5c3_mission_ctrl.jpg', title: 'Mission Control', desc: 'Tracking every whisker-raising expedition into the unknown.', link: '/missions', linkText: 'All Missions →' },
+            { image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/2759063ca_research.png', title: 'Planet Database', desc: 'All surveyed worlds ranked by habitability for feline life.', link: '/planets', linkText: 'Explore Planets →' },
+            { image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/997288998_plans.png', title: 'Crew Roster', desc: 'The bravest cats to ever leave a perfectly good cardboard box behind.', link: '/crew', linkText: 'Meet the Crew →' },
+            { image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/b2e26739c_log.png', title: 'Mission Control', desc: 'Tracking every whisker-raising expedition into the unknown.', link: '/missions', linkText: 'All Missions →' },
           ].map((item, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + i * 0.1 }}>
               <Link to={item.link} className="block bg-card border border-border overflow-hidden hover:border-primary/40 p-0 group transition-colors h-full flex flex-col">
@@ -99,7 +99,7 @@ export default function Explore() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
           className="mt-16 text-center border border-border bg-card p-12 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
-            <img src="https://static.wixstatic.com/media/a2b5c3_membership_bg.jpg/v1/fill/w_1200,h_800,al_c,q_85/a2b5c3_membership_bg.jpg" alt="" className="w-full h-full object-cover" />
+            <img src="https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/b2e26739c_log.png" alt="" className="w-full h-full object-cover" />
           </div>
           <div className="relative z-10">
             <h2 className="font-display text-3xl tracking-widest text-primary uppercase mb-4">Join the Crew</h2>
