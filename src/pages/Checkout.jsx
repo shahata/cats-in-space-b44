@@ -18,14 +18,21 @@ export default function Checkout() {
     e.preventDefault();
     if (!valid) return;
     setSubmitting(true);
-    const order = await base44.entities.Order.create({
-      ...form,
-      items: items.map(({ product_id, name, price, quantity }) => ({ product_id, name, price, quantity })),
-      total,
-      status: 'pending'
-    });
-    clearCart();
-    navigate('/order-confirmation?id=' + order.id);
+    try {
+      const res = await base44.functions.invoke('createWixCheckout', {
+        items,
+        email: form.email,
+        customerName: form.customer_name,
+        address: form.address,
+      });
+      clearCart();
+      if (res.data.checkoutUrl) {
+        window.location.href = res.data.checkoutUrl;
+      }
+    } catch (err) {
+      setSubmitting(false);
+      console.error('Checkout error:', err);
+    }
   };
 
   if (items.length === 0) {

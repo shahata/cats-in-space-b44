@@ -11,8 +11,10 @@ export default function Home() {
   const { addItem } = useCart();
 
   useEffect(() => {
-    base44.entities.Product.list().then(data => {
-      setProducts(data);
+    base44.functions.invoke('getWixProducts', {}).then(res => {
+      setProducts(res.data.products);
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
   }, []);
