@@ -47,9 +47,12 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (exploreRef.current && !exploreRef.current.contains(e.target)) setOpenDropdown(null);
-      if (facilitiesRef.current && !facilitiesRef.current.contains(e.target)) setOpenDropdown(null);
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      const inExplore = exploreRef.current?.contains(e.target);
+      const inFacilities = facilitiesRef.current?.contains(e.target);
+      const inMenu = menuRef.current?.contains(e.target);
+      
+      if (!inExplore && !inFacilities) setOpenDropdown(null);
+      if (!inMenu) setMenuOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
