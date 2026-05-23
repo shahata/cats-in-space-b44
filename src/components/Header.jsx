@@ -10,9 +10,8 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [siteId, setSiteId] = useState(null);
   const menuRef = useRef(null);
-  const [exploreOpen, setExploreOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null);
   const exploreRef = useRef(null);
-  const [facilitiesOpen, setFacilitiesOpen] = useState(false);
   const facilitiesRef = useRef(null);
 
   useEffect(() => {
@@ -48,8 +47,8 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (exploreRef.current && !exploreRef.current.contains(e.target)) setExploreOpen(false);
-      if (facilitiesRef.current && !facilitiesRef.current.contains(e.target)) setFacilitiesOpen(false);
+      if (exploreRef.current && !exploreRef.current.contains(e.target)) setOpenDropdown(null);
+      if (facilitiesRef.current && !facilitiesRef.current.contains(e.target)) setOpenDropdown(null);
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -92,19 +91,19 @@ export default function Header() {
             link.hasDropdown ? (
               <div key={link.to} className="relative" ref={exploreRef}>
                 <button
-                  onClick={() => { setFacilitiesOpen(false); setExploreOpen(prev => !prev); }}
+                  onClick={() => setOpenDropdown(openDropdown === 'explore' ? null : 'explore')}
                   className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
                   {link.label}
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${exploreOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${openDropdown === 'explore' ? 'rotate-180' : ''}`} />
                 </button>
-                {exploreOpen && (
+                {openDropdown === 'explore' && (
                   <div className="absolute top-full left-0 mt-2 w-44 bg-background border border-border shadow-lg z-50 py-1">
-                    <Link to={link.to} onClick={() => setExploreOpen(false)}
+                    <Link to={link.to} onClick={() => setOpenDropdown(null)}
                       className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
                       🚢 The Ship
                     </Link>
                     {exploreLinks.map(el => (
-                      <Link key={el.to} to={el.to} onClick={() => setExploreOpen(false)}
+                      <Link key={el.to} to={el.to} onClick={() => setOpenDropdown(null)}
                         className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
                         {el.label}
                       </Link>
@@ -115,15 +114,15 @@ export default function Header() {
             ) : link.to === '/facilities' ? (
               <div key={link.to} className="relative" ref={facilitiesRef}>
                 <button
-                  onClick={() => { setExploreOpen(false); setFacilitiesOpen(prev => !prev); }}
+                  onClick={() => setOpenDropdown(openDropdown === 'facilities' ? null : 'facilities')}
                   className="flex items-center gap-1 text-xs font-mono tracking-widest uppercase text-foreground/70 hover:text-primary transition-colors">
                   {link.label}
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${facilitiesOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${openDropdown === 'facilities' ? 'rotate-180' : ''}`} />
                 </button>
-                {facilitiesOpen && (
+                {openDropdown === 'facilities' && (
                   <div className="absolute top-full left-0 mt-2 w-44 bg-background border border-border shadow-lg z-50 py-1">
                     {facilitiesLinks.map(fl => (
-                      <Link key={fl.to} to={fl.to} onClick={() => setFacilitiesOpen(false)}
+                      <Link key={fl.to} to={fl.to} onClick={() => setOpenDropdown(null)}
                         className="block px-4 py-2 text-xs font-mono text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
                         {fl.label}
                       </Link>
