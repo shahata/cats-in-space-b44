@@ -58,12 +58,12 @@ export default function useWixCart() {
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
-  const addItem = useCallback(async (productId) => {
+  const addItem = useCallback(async (productId, variantId) => {
     setActionLoading(true);
-    let res = await invoke({ action: 'addItem', productId, quantity: 1 });
+    let res = await invoke({ action: 'addItem', productId, variantId: variantId || null, quantity: 1 });
     // If cart was expired and cleared, res.cart will be undefined — retry fresh
     if (!res.cart) {
-      res = await invoke({ action: 'addItem', productId, quantity: 1 });
+      res = await invoke({ action: 'addItem', productId, variantId: variantId || null, quantity: 1 });
     }
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);

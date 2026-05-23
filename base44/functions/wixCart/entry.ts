@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       url.searchParams.forEach((v, k) => { body[k] = v === 'null' ? null : v; });
     }
 
-    const { action, cartId, productId, lineItemId } = body;
+    const { action, cartId, productId, lineItemId, variantId } = body;
     const quantity = body.quantity ? parseInt(body.quantity) : 1;
     let visitorToken = body.visitorToken || null;
 
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
           headers,
           body: JSON.stringify({
             lineItems: [{
-              catalogReference: { appId: WIX_STORES_APP_ID, catalogItemId: productId },
+              catalogReference: { appId: WIX_STORES_APP_ID, catalogItemId: productId, ...(variantId ? { options: { variantId } } : {}) },
               quantity: quantity || 1,
             }],
           }),
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
           headers,
           body: JSON.stringify({
             lineItems: [{
-              catalogReference: { appId: WIX_STORES_APP_ID, catalogItemId: productId },
+              catalogReference: { appId: WIX_STORES_APP_ID, catalogItemId: productId, ...(variantId ? { options: { variantId } } : {}) },
               quantity: quantity || 1,
             }],
           }),

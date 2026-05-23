@@ -30,16 +30,14 @@ Deno.serve(async (req) => {
 
     const accessToken = await getWixAccessToken(clientId);
 
-    const productsResponse = await fetch("https://www.wixapis.com/stores/v3/products/query", {
+    const productsResponse = await fetch("https://www.wixapis.com/stores-reader/v1/products/query", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "wix-site-id": instanceId,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        cursorPaging: { limit: 100 },
-      }),
+      body: JSON.stringify({ includeVariants: true }),
     });
 
     const productsData = await productsResponse.json();
@@ -48,14 +46,35 @@ Deno.serve(async (req) => {
       return Response.json({ error: productsData }, { status: productsResponse.status });
     }
 
-    const products = (productsData.products || []).map(p => ({
-      id: p.id,
-      name: p.name,
-      description: p.description || "",
-      price: parseFloat(p.actualPriceRange?.minValue?.amount || 0),
-      image: p.media?.main?.image?.url || "",
-      wixId: p.id,
-    }));
+    const products = (productsData.products || []).map(p => {
+      const options = p.productOptions || [];
+      const variants = (p.variants || []).map(v => ({
+        id: v.id,
+        choices: v.choices || {},
+        price: parseFloat(v.variant?.priceData?.price || p.priceData?.price || 0),
+        stock: v.stock?.inStock !== false,
+      }));
+      const inStock = p.stock?.inStock !== false;
+      const hasVariants = p.manageVariants === true && variants.length > 0;
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description || "",
+        price: parseFloat(p.priceData?.price || p.price?.price || 0),
+        image: p.media?.mainMedia?.image?.url || p.media?.main?.image?.url || "",
+        wixId: p.id,
+        hasVariants,
+        inStock,
+        productOptions: options.map(o => ({
+          name: o.name,
+          choices: (o.choices || []).filter(c => c.visible !== false).map(c => ({
+            value: c.value || c.description,
+            inStock: c.inStock !== false,
+          })),
+        })),
+        variants,
+      };
+    });
 
     return Response.json({ products });
   } catch (error) {

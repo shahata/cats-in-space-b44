@@ -1,12 +1,24 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
+import VariantModal from './VariantModal';
 
 export default function ProductCard({ product, onAdd, index }) {
   const [added, setAdded] = useState(false);
+  const [showVariants, setShowVariants] = useState(false);
 
   const handleAdd = () => {
+    if (product.hasVariants) {
+      setShowVariants(true);
+      return;
+    }
     onAdd(product.wixId || product.id);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1200);
+  };
+
+  const handleVariantAdd = async (productId, variantId) => {
+    await onAdd(productId, variantId);
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
   };
@@ -51,6 +63,13 @@ export default function ProductCard({ product, onAdd, index }) {
         </div>
         <span className="font-mono text-sm tracking-wide shrink-0">${product.price?.toFixed(2)}</span>
       </div>
+      {showVariants && (
+        <VariantModal
+          product={product}
+          onAdd={handleVariantAdd}
+          onClose={() => setShowVariants(false)}
+        />
+      )}
     </motion.div>
   );
 }
