@@ -20,19 +20,30 @@ export default function Missions() {
       const allCrew = crewRes.data.items || [];
       const allPlanets = planetsRes.data.items || [];
       
-      const enrichedMissions = missionsData.map(m => ({
-        ...m,
-        crewMembers: m.crewIds 
-          ? allCrew.filter(c => m.crewIds.includes(c._id))
-          : m.crew
-            ? allCrew.filter(c => m.crew.includes(c._id))
-            : [],
-        planetData: allPlanets.find(p => (p.name || p.title || '').toLowerCase() === (m.planet || '').toLowerCase())
-      }));
+      const enrichedMissions = missionsData.map(m => {
+        // Try multiple possible crew field names and handle different ID formats
+        const crewField = m.crewIds || m.crew || m.crew_member_ids || m.crewMemberIds || m.crew_members || m.crewMembers || [];
+        let crewMembers = [];
+        if (Array.isArray(crewField)) {
+          // Direct ID match
+          crewMembers = allCrew.filter(c => crewField.includes(c._id));
+          // If no matches, try matching by title/name as fallback
+          if (crewMembers.length === 0 && crewField.length > 0) {
+            crewMembers = allCrew.filter(c => crewField.some(id => 
+              c._id?.includes(id) || id.includes(c._id?.split('-')[0] || '')
+            ));
+          }
+        }
+        return {
+          ...m,
+          crewMembers,
+          planetData: allPlanets.find(p => (p.name || p.title || '').toLowerCase() === (m.planet || '').toLowerCase())
+        };
+      });
       
       setMissions(enrichedMissions);
       setCrew(allCrew);
-    }).catch(() => {})
+    }).catch(err => console.error('Missions error:', err))
     .finally(() => setLoading(false));
   }, []);
 
@@ -105,13 +116,15 @@ export default function Missions() {
                         {mission.crewMembers?.length > 0 && (
                           <div className="flex flex-col gap-1">
                             <span className="text-xs text-muted-foreground font-mono uppercase">Crew</span>
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 flex-wrap">
                               {mission.crewMembers.map((c, ci) => {
                                 const cImage = c.photo || c.image || c.mainImage;
+                                const cName = c.title || c.name || 'Crew';
+                                console.log(`Crew ${ci}:`, c);
                                 return (
-                                  <div key={ci} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-sm overflow-hidden">
+                                  <div key={ci} className="w-9 h-9 rounded-full border border-border flex items-center justify-center text-sm overflow-hidden" title={cName}>
                                     {cImage ? (
-                                      <img src={cImage} alt={c.title || c.name} className="w-full h-full object-cover" />
+                                      <img src={cImage} alt={cName} className="w-full h-full object-cover" />
                                     ) : (
                                       <span>🐱</span>
                                     )}
