@@ -32,7 +32,14 @@ export default function useWixCart() {
 
   const fetchCart = useCallback(async () => {
     const cartId = getStored(CART_ID_KEY);
-    if (!cartId) { setLoading(false); return; }
+    const visitorToken = getStored(VISITOR_TOKEN_KEY);
+    // If there's a cartId but no visitor token, the session is stale — clear it
+    if (!cartId || !visitorToken) {
+      setStored(CART_ID_KEY, null);
+      setStored(VISITOR_TOKEN_KEY, null);
+      setLoading(false);
+      return;
+    }
     try {
       await invoke({ action: 'get' });
     } catch {
