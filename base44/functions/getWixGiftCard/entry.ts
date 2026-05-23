@@ -30,34 +30,40 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // Try the Gift Vouchers / Gift Cards API
-    const res = await fetch('https://www.wixapis.com/gift-voucher/v1/products', {
-      method: 'GET',
+    // Wix Stores represents gift cards as regular products with productType="giftCard".
+    const res = await fetch('https://www.wixapis.com/stores-reader/v1/products/query', {
+      method: 'POST',
       headers,
+      body: JSON.stringify({ includeVariants: true }),
     });
     const data = await safeJson(res);
 
-    // Default amounts if API doesn't return product
     const defaultAmounts = [25, 50, 100, 150, 200];
+    const defaultImage = 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/4c1c3f124_generated_image.png';
     let amounts = defaultAmounts;
     let currency = 'ILS';
     let name = 'eGift Card';
-    let image = null;
+    let description = "You can't go wrong with a gift card. Choose an amount and write a personalized message to make this gift your own.";
+    let image = defaultImage;
 
-    if (res.ok && data.products?.[0]) {
-      const product = data.products[0];
-      name = product.name || name;
-      image = product.media?.mainMedia?.image?.url || product.image?.url || null;
-      if (product.variants?.length) {
-        amounts = product.variants.map(v => parseFloat(v.price?.value || 0)).filter(Boolean);
-        currency = product.variants[0]?.price?.currency || currency;
+    const giftProduct = (data.products || []).find(p => p.productType === 'giftCard');
+    if (giftProduct) {
+      name = giftProduct.name || name;
+      description = giftProduct.description || description;
+      image = giftProduct.media?.mainMedia?.image?.url || defaultImage;
+      currency = giftProduct.priceData?.currency || currency;
+      if (giftProduct.variants?.length) {
+        const variantPrices = giftProduct.variants
+          .map(v => parseFloat(v.variant?.priceData?.price || 0))
+          .filter(p => p > 0);
+        if (variantPrices.length) amounts = variantPrices;
       }
     }
 
     return Response.json({
       giftCard: {
         name,
-        description: "You can't go wrong with a gift card. Choose an amount and write a personalized message to make this gift your own.",
+        description,
         image,
         amounts,
         currency,
