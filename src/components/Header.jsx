@@ -75,7 +75,7 @@ export default function Header() {
   ];
 
   const facilitiesLinks = [
-    { to: '/', label: '🛒 Shop' },
+    { to: '/shop', label: '🛒 Shop' },
     { to: '/medical-bay', label: '🏥 Medical Bay' },
     { to: '/cinema', label: '🎬 Cinema' },
     { to: '/restaurant', label: '🍽️ Restaurant' },
