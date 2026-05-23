@@ -34,12 +34,12 @@ export default function Home() {
         </div>
         <div className="relative z-10 px-[6vw] md:px-[8vw] text-background w-full">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
-            <p className="font-mono text-xs tracking-widest uppercase mb-4 text-background/70">New Collection — 2025</p>
+            <p className="font-mono text-xs tracking-widest uppercase mb-4 text-background/70">Handcrafted Ceramics</p>
             <h1 className="font-display text-6xl md:text-8xl lg:text-[110px] tracking-tight leading-none mb-6">
-              Atelier<br /><em>Essence</em>
+              Folio<br /><em>Ceramics</em>
             </h1>
             <p className="font-body text-background/80 text-base md:text-lg max-w-md mb-10">
-              Curated objects designed for modern living. Each piece tells a story.
+              Artisan ceramic pieces crafted with intention. Each creation is unique and functional.
             </p>
             <button
               onClick={() => document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })}
@@ -56,8 +56,8 @@ export default function Home() {
       <section id="collection" className="px-[6vw] md:px-[8vw] py-20 md:py-28">
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="flex items-baseline justify-between mb-14">
           <div>
-            <p className="font-mono text-xs tracking-widest uppercase text-muted-foreground mb-2">Our Catalog</p>
-            <h2 className="font-display text-4xl md:text-5xl tracking-tight">The Collection</h2>
+            <p className="font-mono text-xs tracking-widest uppercase text-muted-foreground mb-2">Browse</p>
+            <h2 className="font-display text-4xl md:text-5xl tracking-tight">Ceramic Pieces</h2>
           </div>
           {products.length > 0 && (
             <span className="font-mono text-sm text-muted-foreground">{products.length} pieces</span>
@@ -81,8 +81,8 @@ export default function Home() {
 
       {/* Footer strip */}
       <footer className="border-t border-border/50 px-[6vw] md:px-[8vw] py-10 flex flex-col md:flex-row items-center justify-between gap-4">
-        <span className="font-display text-xl tracking-tight">Atelier Essence</span>
-        <p className="text-muted-foreground text-xs font-mono">© 2025 All rights reserved</p>
+        <span className="font-display text-xl tracking-tight">Folio Ceramics</span>
+        <p className="text-muted-foreground text-xs font-mono">© 2025 Handcrafted with care</p>
       </footer>
     </div>
   );

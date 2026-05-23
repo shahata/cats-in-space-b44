@@ -41,7 +41,7 @@ export default function Header() {
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-background/80 backdrop-blur-xl border-b border-border/50' : 'bg-transparent'}`}>
       <div className="flex items-center justify-between px-[6vw] md:px-[8vw] h-16 md:h-20">
         <Link to="/" className="font-display text-xl md:text-2xl tracking-tight text-foreground hover:text-primary transition-colors">
-          Atelier Essence
+          Folio Ceramics
         </Link>
         <div className="flex items-center gap-5">
         {user ? (

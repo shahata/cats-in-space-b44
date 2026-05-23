@@ -120,7 +120,7 @@ export default function ProductDetail() {
 
           {/* Product Info */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="flex flex-col">
-            <p className="text-muted-foreground text-xs tracking-widest uppercase font-mono mb-3">Atelier Essence</p>
+            <p className="text-muted-foreground text-xs tracking-widest uppercase font-mono mb-3">Folio Ceramics</p>
             <h1 className="font-display text-4xl md:text-5xl tracking-tight leading-tight mb-4">{product.name}</h1>
             <p className="font-mono text-2xl mb-6">{product.formattedPrice || product.price?.toFixed(2)}</p>
 
