@@ -22,33 +22,38 @@ export default function useWixCart() {
     if (resData.visitorToken) setStored(VISITOR_TOKEN_KEY, resData.visitorToken);
   }, []);
 
+  const clearCart = useCallback(() => {
+    setStored(CART_ID_KEY, null);
+    setStored(VISITOR_TOKEN_KEY, null);
+    setCart(null);
+  }, []);
+
   const invoke = useCallback(async (payload) => {
     const cartId = getStored(CART_ID_KEY);
     const visitorToken = getStored(VISITOR_TOKEN_KEY);
-    const res = await base44.functions.invoke('wixCart', { ...payload, cartId, visitorToken });
-    applyResponse(res.data);
-    return res.data;
-  }, [applyResponse]);
+    try {
+      const res = await base44.functions.invoke('wixCart', { ...payload, cartId, visitorToken });
+      applyResponse(res.data);
+      return res.data;
+    } catch (err) {
+      // Cart no longer exists on Wix — reset local state
+      if (err?.response?.status === 404) {
+        clearCart();
+        return {};
+      }
+      throw err;
+    }
+  }, [applyResponse, clearCart]);
 
   const fetchCart = useCallback(async () => {
     const cartId = getStored(CART_ID_KEY);
     const visitorToken = getStored(VISITOR_TOKEN_KEY);
-    // If there's a cartId but no visitor token, the session is stale — clear it
     if (!cartId || !visitorToken) {
-      setStored(CART_ID_KEY, null);
-      setStored(VISITOR_TOKEN_KEY, null);
       setLoading(false);
       return;
     }
-    try {
-      await invoke({ action: 'get' });
-    } catch {
-      setStored(CART_ID_KEY, null);
-      setStored(VISITOR_TOKEN_KEY, null);
-      setCart(null);
-    } finally {
-      setLoading(false);
-    }
+    await invoke({ action: 'get' });
+    setLoading(false);
   }, [invoke]);
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
