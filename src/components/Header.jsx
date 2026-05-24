@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { ShoppingBag, ChevronDown, ExternalLink, Package, LogOut } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { getWixAccessToken } from '../lib/wixClient';
+import { getWixTokens } from '../lib/wixClient';
 
 export default function Header() {
   const [count, setCount] = useState(0);
@@ -27,10 +27,9 @@ export default function Header() {
   useEffect(() => {
     const sync = async () => {
       try {
-        const cartId = localStorage.getItem('wix_cart_id');
-        if (!cartId) { setCount(0); return; }
-        const visitorToken = getWixAccessToken();
-        const res = await base44.functions.invoke('wixCart', { action: 'get', cartId, visitorToken });
+        const wixTokens = getWixTokens();
+        if (!wixTokens?.accessToken?.value) { setCount(0); return; }
+        const res = await base44.functions.invoke('wixCart', { action: 'get', wixTokens });
         const items = res.data.cart?.lineItems || [];
         setCount(items.reduce((s, i) => s + (i.quantity || 0), 0));
       } catch { setCount(0); }

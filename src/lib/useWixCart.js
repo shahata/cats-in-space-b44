@@ -1,55 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { getWixAccessToken } from './wixClient';
+import { getWixTokens } from './wixClient';
 
-const CART_ID_KEY = 'wix_cart_id';
-
-function getStored(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function setStored(key, val) {
-  try { if (val) localStorage.setItem(key, val); else localStorage.removeItem(key); } catch {}
-}
-
+// Cart identity is managed entirely by Wix's currentCart API, keyed off the
+// session tokens. We don't track cartId on the client anymore.
 export default function useWixCart() {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const applyResponse = useCallback((resData) => {
-    if (resData.cart) setCart(resData.cart);
-    if (resData.cartId) setStored(CART_ID_KEY, resData.cartId);
-  }, []);
-
-  const clearCart = useCallback(() => {
-    setStored(CART_ID_KEY, null);
-    setCart(null);
-  }, []);
-
   const invoke = useCallback(async (payload) => {
-    const cartId = getStored(CART_ID_KEY);
-    const visitorToken = getWixAccessToken();
-    try {
-      const res = await base44.functions.invoke('wixCart', { ...payload, cartId, visitorToken });
-      applyResponse(res.data);
-      return res.data;
-    } catch (err) {
-      // Cart no longer exists on Wix — reset local state
-      if (err?.response?.status === 404) {
-        clearCart();
-        return {};
-      }
-      throw err;
-    }
-  }, [applyResponse, clearCart]);
+    const wixTokens = getWixTokens();
+    if (!wixTokens?.accessToken?.value) return {};
+    const res = await base44.functions.invoke('wixCart', { ...payload, wixTokens });
+    if (res.data && 'cart' in res.data) setCart(res.data.cart || null);
+    return res.data || {};
+  }, []);
 
   const fetchCart = useCallback(async () => {
-    const cartId = getStored(CART_ID_KEY);
-    const visitorToken = getWixAccessToken();
-    if (!cartId || !visitorToken) {
-      setLoading(false);
-      return;
-    }
     await invoke({ action: 'get' });
     setLoading(false);
   }, [invoke]);
@@ -58,11 +26,7 @@ export default function useWixCart() {
 
   const addItem = useCallback(async (productId, variantId) => {
     setActionLoading(true);
-    let res = await invoke({ action: 'addItem', productId, variantId: variantId || null, quantity: 1 });
-    // If cart was expired and cleared, res.cart will be undefined — retry fresh
-    if (!res.cart) {
-      res = await invoke({ action: 'addItem', productId, variantId: variantId || null, quantity: 1 });
-    }
+    const res = await invoke({ action: 'addItem', productId, variantId: variantId || null, quantity: 1 });
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);
     return res.cart;
@@ -93,7 +57,12 @@ export default function useWixCart() {
         userFullName = me?.full_name || '';
       }
     } catch {}
-    const res = await invoke({ action: 'createCheckout', postFlowUrl: window.location.origin, userEmail, userFullName });
+    const res = await invoke({
+      action: 'createCheckout',
+      postFlowUrl: window.location.origin,
+      userEmail,
+      userFullName,
+    });
     return res;
   }, [invoke]);
 

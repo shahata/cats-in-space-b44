@@ -39,6 +39,15 @@ export function getWixAccessToken() {
   return tokens?.accessToken?.value || null;
 }
 
+/**
+ * Returns the full Wix tokens object ({ accessToken, refreshToken }) for
+ * passing to backend functions that need to act on behalf of the current
+ * Wix session (e.g. cart operations via the currentCart API).
+ */
+export function getWixTokens() {
+  return readTokens();
+}
+
 let _client = null;
 
 function getClientId() {

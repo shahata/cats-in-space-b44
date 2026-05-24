@@ -1,5 +1,23 @@
+// Session-aware cart using Wix's currentCart API.
+// Frontend sends the full Wix tokens (member or visitor) from wixSession,
+// the backend sets them on the OAuth client, and currentCart manages cart
+// identity automatically — no manual cartId required.
 import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
-import { cart } from 'npm:@wix/ecom@1.0.2074';
+import { currentCart, checkout } from 'npm:@wix/ecom@1.0.2074';
+
+const WIX_STORES_APP_ID = '1380b703-ce81-ff05-f115-39571d94dfcd';
+
+function buildClient(clientId, wixTokens) {
+  return createClient({
+    modules: { currentCart, checkout },
+    auth: OAuthStrategy({ clientId, tokens: wixTokens }),
+  });
+}
+
+function isCartNotFound(e) {
+  const code = e?.details?.applicationError?.code || e?.message || '';
+  return /OWNED_CART_NOT_FOUND|cart.*not.*found/i.test(code);
+}
 
 Deno.serve(async (req) => {
   try {
@@ -7,49 +25,100 @@ Deno.serve(async (req) => {
     if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
     const body = await req.json().catch(() => ({}));
-    const { action, cartId, lines = [] } = body;
+    const { action, wixTokens, productId, variantId, lineItemId, quantity, postFlowUrl, userEmail, userFullName } = body;
 
-    const wix = createClient({
-      modules: { cart },
-      auth: OAuthStrategy({ clientId }),
-    });
+    if (!wixTokens?.accessToken?.value) {
+      return Response.json({ error: 'Missing Wix session tokens', cart: null });
+    }
+
+    const wix = buildClient(clientId, wixTokens);
 
     if (action === 'get') {
-      const res = await wix.cart.getCart(cartId).catch(e => {
+      try {
+        const cart = await wix.currentCart.getCurrentCart();
+        return Response.json({ cart, cartId: cart?._id || null });
+      } catch (e) {
+        if (isCartNotFound(e)) return Response.json({ cart: null, cartId: null });
         console.error('[wixCart] get:', e.message);
-        return null;
-      });
-      return Response.json({ cart: res || {} });
+        return Response.json({ cart: null, cartId: null });
+      }
     }
 
-    if (action === 'add') {
-      const res = await wix.cart.addToCart(cartId, { lineItems: lines }).catch(e => {
-        console.error('[wixCart] add:', e.message);
+    if (action === 'addItem') {
+      const item = {
+        catalogReference: {
+          appId: WIX_STORES_APP_ID,
+          catalogItemId: productId,
+          ...(variantId ? { options: { variantId } } : {}),
+        },
+        quantity: quantity || 1,
+      };
+      const res = await wix.currentCart.addToCurrentCart({ lineItems: [item] }).catch(e => {
+        console.error('[wixCart] addItem:', e.message);
         return null;
       });
-      return Response.json({ cart: res?.cart || res || {} });
+      const cart = res?.cart || null;
+      return Response.json({ cart, cartId: cart?._id || null });
     }
 
-    if (action === 'remove') {
-      const ids = lines.map(l => typeof l === 'string' ? l : l.id || l._id).filter(Boolean);
-      const res = await wix.cart.removeLineItems(cartId, ids).catch(e => {
-        console.error('[wixCart] remove:', e.message);
+    if (action === 'removeItem') {
+      const res = await wix.currentCart.removeLineItemsFromCurrentCart([lineItemId]).catch(e => {
+        console.error('[wixCart] removeItem:', e.message);
         return null;
       });
-      return Response.json({ cart: res?.cart || res || {} });
+      const cart = res?.cart || null;
+      return Response.json({ cart, cartId: cart?._id || null });
     }
 
-    if (action === 'update') {
-      const res = await wix.cart.updateLineItemsQuantity(cartId, { lineItems: lines }).catch(e => {
-        console.error('[wixCart] update:', e.message);
+    if (action === 'updateItem') {
+      if (!quantity || quantity <= 0) {
+        const res = await wix.currentCart.removeLineItemsFromCurrentCart([lineItemId]).catch(e => {
+          console.error('[wixCart] updateItem(remove):', e.message);
+          return null;
+        });
+        const cart = res?.cart || null;
+        return Response.json({ cart, cartId: cart?._id || null });
+      }
+      const res = await wix.currentCart.updateCurrentCartLineItemQuantity([
+        { _id: lineItemId, quantity },
+      ]).catch(e => {
+        console.error('[wixCart] updateItem:', e.message);
         return null;
       });
-      return Response.json({ cart: res?.cart || res || {} });
+      const cart = res?.cart || null;
+      return Response.json({ cart, cartId: cart?._id || null });
     }
 
-    return Response.json({ error: 'Invalid action', cart: {} });
+    if (action === 'createCheckout') {
+      const checkoutRes = await wix.currentCart.createCheckoutFromCurrentCart({
+        channelType: checkout.ChannelType.WEB,
+      }).catch(e => {
+        console.error('[wixCart] createCheckout:', e.message);
+        return null;
+      });
+      if (!checkoutRes?.checkoutId) {
+        return Response.json({ error: 'Could not create checkout', checkoutUrl: null });
+      }
+      const origin = postFlowUrl || '';
+      const redirect = await wix.checkout.createRedirectSession({
+        checkoutId: checkoutRes.checkoutId,
+        callbacks: {
+          postFlowUrl: origin,
+          thankYouPageUrl: origin ? `${origin}/order-confirmation` : undefined,
+        },
+      }).catch(e => {
+        console.error('[wixCart] redirect:', e.message);
+        return null;
+      });
+      return Response.json({
+        checkoutId: checkoutRes.checkoutId,
+        checkoutUrl: redirect?.redirectSession?.fullUrl || null,
+      });
+    }
+
+    return Response.json({ error: 'Invalid action' });
   } catch (err) {
     console.error('[wixCart] Exception:', err.message);
-    return Response.json({ error: err.message, cart: {} }, { status: 500 });
+    return Response.json({ error: err.message }, { status: 500 });
   }
 });
