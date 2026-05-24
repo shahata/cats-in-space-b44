@@ -9,10 +9,12 @@ export default function ProductCard({ product, onAdd, index }) {
   const [showVariants, setShowVariants] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  const needsSelection = (product.productOptions?.length || 0) > 0;
+
   const handleAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (product.hasVariants) { setShowVariants(true); return; }
+    if (needsSelection) { setShowVariants(true); return; }
     setAdding(true);
     onAdd(product.wixId || product.id).then(() => {
       setAdding(false);
@@ -21,8 +23,8 @@ export default function ProductCard({ product, onAdd, index }) {
     }).catch(() => setAdding(false));
   };
 
-  const handleVariantAdd = async (productId, variantId) => {
-    await onAdd(productId, variantId);
+  const handleVariantAdd = async (productId, variantId, choices) => {
+    await onAdd(productId, variantId, choices);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };

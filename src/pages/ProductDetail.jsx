@@ -54,13 +54,12 @@ export default function ProductDetail() {
   };
 
   const handleAdd = async () => {
-    if (product.hasVariants && !allSelected) { setError('Please select all options.'); return; }
-    if (product.hasVariants) {
+    if (options.length > 0 && !allSelected) { setError('Please select all options.'); return; }
+    if (options.length > 0) {
       const variant = getMatchingVariant();
-      if (!variant) { setError('This combination is unavailable.'); return; }
-      if (!variant.stock) { setError('This variant is out of stock.'); return; }
+      if (variant && !variant.stock) { setError('This variant is out of stock.'); return; }
       setAdding(true); setError('');
-      await addItem(product.wixId || product.id, variant.id);
+      await addItem(product.wixId || product.id, variant?.id || null, selections);
     } else {
       setAdding(true); setError('');
       await addItem(product.wixId || product.id);

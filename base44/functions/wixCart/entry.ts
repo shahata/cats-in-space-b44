@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
     const body = await req.json().catch(() => ({}));
-    const { action, wixTokens, productId, variantId, lineItemId, quantity, postFlowUrl, userEmail, userFullName } = body;
+    const { action, wixTokens, productId, variantId, choices, lineItemId, quantity, postFlowUrl, userEmail, userFullName } = body;
 
     if (!wixTokens?.accessToken?.value) {
       return Response.json({ error: 'Missing Wix session tokens', cart: null });
@@ -45,11 +45,17 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'addItem') {
+      // Wix Stores catalogReference accepts either a precomputed variantId
+      // or a free-form { options: { OptionName: ChoiceValue } } map for
+      // products that expose options without precomputed variants.
+      const refOptions = variantId
+        ? { variantId }
+        : (choices && Object.keys(choices).length ? { options: choices } : null);
       const item = {
         catalogReference: {
           appId: WIX_STORES_APP_ID,
           catalogItemId: productId,
-          ...(variantId ? { options: { variantId } } : {}),
+          ...(refOptions ? { options: refOptions } : {}),
         },
         quantity: quantity || 1,
       };

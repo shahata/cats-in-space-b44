@@ -24,17 +24,16 @@ export default function VariantModal({ product, onAdd, onClose }) {
       return;
     }
     const variant = getMatchingVariant();
-    if (!variant) {
-      setError('This combination is unavailable.');
-      return;
-    }
-    if (!variant.stock) {
+    if (variant && !variant.stock) {
       setError('This variant is out of stock.');
       return;
     }
     setAdding(true);
     setError('');
-    await onAdd(product.wixId || product.id, variant.id);
+    // Pass both variant id (when we have a precomputed match) and the raw
+    // choice selections, so the backend can fall back to options.options
+    // if no variantId is available.
+    await onAdd(product.wixId || product.id, variant?.id || null, selections);
     setAdding(false);
     onClose();
   };

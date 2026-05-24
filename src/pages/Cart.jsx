@@ -46,7 +46,7 @@ export default function Cart() {
             <>
               <div className="border-t border-border/50">
                 {items.map(item => (
-                  <CartItem key={item.id} item={item} onUpdateQty={updateQuantity} onRemove={removeItem} disabled={actionLoading} />
+                  <CartItem key={item._id || item.id} item={item} onUpdateQty={updateQuantity} onRemove={removeItem} disabled={actionLoading} />
                 ))}
               </div>
 

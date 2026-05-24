@@ -24,9 +24,9 @@ export default function useWixCart() {
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
-  const addItem = useCallback(async (productId, variantId) => {
+  const addItem = useCallback(async (productId, variantId, choices) => {
     setActionLoading(true);
-    const res = await invoke({ action: 'addItem', productId, variantId: variantId || null, quantity: 1 });
+    const res = await invoke({ action: 'addItem', productId, variantId: variantId || null, choices: choices || null, quantity: 1 });
     window.dispatchEvent(new Event('cart-updated'));
     setActionLoading(false);
     return res.cart;
