@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing Wix credentials' }, { status: 500 });
     }
 
-    // Admin client via AppStrategy for member management
+    // Admin client (AppStrategy) for member management
     const admin = createClient({
       modules: { members },
       auth: AppStrategy({ appId: clientId, appSecret: clientSecret, instanceId }),
@@ -56,70 +56,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Could not resolve member' }, { status: 500 });
     }
 
-    // Visitor-scoped OAuth client to mint member tokens.
-    // getMemberTokensForExternalLogin(memberId, apiKey) per Wix docs.
-    // We pass clientSecret as the "apiKey" arg — user requested this attempt.
+    // OAuth client must have visitor tokens minted first — the SDK builds the
+    // Authorization header as `${accessToken},${apiKey}`, so an empty access
+    // token causes Wix to reject with `unauthorized_client`.
     const wix = createClient({ auth: OAuthStrategy({ clientId }) });
+    const visitorTokens = await wix.auth.generateVisitorTokens();
+    wix.auth.setTokens(visitorTokens);
 
-    let memberTokens = null;
-    let mintError = null;
-    const capturedRequests = [];
-
-    // Monkey-patch fetch to capture ALL outbound requests
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (input, init) => {
-      const url = typeof input === 'string' ? input : input?.url;
-      if (url && (url.includes('wixapis.com') || url.includes('wix.com'))) {
-        const headers = init?.headers ? Object.fromEntries(
-          init.headers instanceof Headers
-            ? init.headers.entries()
-            : Object.entries(init.headers)
-        ) : {};
-        const entry = {
-          url,
-          method: init?.method || 'GET',
-          headers,
-          body: init?.body ? (typeof init.body === 'string' ? init.body : '[non-string body]') : null,
-        };
-        capturedRequests.push(entry);
-        const safeHeaders = Object.fromEntries(
-          Object.entries(headers).map(([k, v]) =>
-            /authorization/i.test(k) ? [k, `[REDACTED len=${String(v).length}]`] : [k, v]
-          )
-        );
-        console.log(`[syncWixMember] OUTBOUND #${capturedRequests.length}:`, JSON.stringify({ ...entry, headers: safeHeaders }, null, 2));
-      }
-      return originalFetch(input, init);
-    };
-
-    try {
-      memberTokens = await wix.auth.getMemberTokensForExternalLogin(
-        member._id,
-        apiKey
-      );
-    } catch (e) {
-      mintError = e?.message || String(e);
-      console.error('[syncWixMember] getMemberTokensForExternalLogin:', mintError, e?.details || '');
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-
-    // Redact Authorization headers in all captured requests
-    const safeCaptured = capturedRequests.map(r => ({
-      ...r,
-      headers: Object.fromEntries(
-        Object.entries(r.headers).map(([k, v]) =>
-          /authorization/i.test(k) ? [k, `[REDACTED len=${String(v).length}]`] : [k, v]
-        )
-      ),
-    }));
+    const memberTokens = await wix.auth.getMemberTokensForExternalLogin(
+      member._id,
+      apiKey
+    );
 
     return Response.json({
       synced: true,
       memberId: member._id,
       tokens: memberTokens,
-      mintError,
-      capturedRequests: safeCaptured,
     });
   } catch (err) {
     console.error('[syncWixMember] Exception:', err.message);
