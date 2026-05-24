@@ -23,8 +23,8 @@ export default function ProductCard({ product, onAdd, index }) {
     }).catch(() => setAdding(false));
   };
 
-  const handleVariantAdd = async (productId, variantId, choices) => {
-    await onAdd(productId, variantId, choices);
+  const handleVariantAdd = async (productId, variantId) => {
+    await onAdd(productId, variantId);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };

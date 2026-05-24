@@ -5,7 +5,10 @@
 import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
 import { currentCart, checkout } from 'npm:@wix/ecom@1.0.2074';
 
-const WIX_STORES_APP_ID = '1380b703-ce81-ff05-f115-39571d94dfcd';
+// Wix Stores V3 appId — required when adding products fetched via productsV3.
+// The legacy V1 appId (1380b703-...) will be silently accepted but Wix will
+// not recognize variants from V3 products.
+const WIX_STORES_APP_ID = '215238eb-22a5-4c36-9e7b-e7c08025e04e';
 
 function buildClient(clientId, wixTokens) {
   return createClient({
@@ -25,7 +28,7 @@ Deno.serve(async (req) => {
     if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
     const body = await req.json().catch(() => ({}));
-    const { action, wixTokens, productId, variantId, choices, lineItemId, quantity, postFlowUrl, userEmail, userFullName } = body;
+    const { action, wixTokens, productId, variantId, lineItemId, quantity, postFlowUrl, userEmail, userFullName } = body;
 
     if (!wixTokens?.accessToken?.value) {
       return Response.json({ error: 'Missing Wix session tokens', cart: null });
@@ -50,29 +53,20 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'addItem') {
-      // Wix Stores catalogReference accepts either a precomputed variantId
-      // or a free-form { options: { OptionName: ChoiceValue } } map for
-      // products that expose options without precomputed variants.
-      const refOptions = variantId
-        ? { variantId }
-        : (choices && Object.keys(choices).length ? { options: choices } : null);
+      // V3 cart requires a variantId; every V3 product has at least one
+      // variant (the default), so this should always be present.
       const item = {
         catalogReference: {
           appId: WIX_STORES_APP_ID,
           catalogItemId: productId,
-          ...(refOptions ? { options: refOptions } : {}),
+          ...(variantId ? { options: { variantId } } : {}),
         },
         quantity: quantity || 1,
       };
-      console.log('[wixCart] addItem input:', JSON.stringify({ productId, variantId, choices }));
       console.log('[wixCart] addItem catalogReference:', JSON.stringify(item.catalogReference));
       try {
         const res = await wix.currentCart.addToCurrentCart({ lineItems: [item] });
         const cart = res?.cart || null;
-        const added = cart?.lineItems?.find(li =>
-          (li.catalogReference?.catalogItemId || li.productId) === productId
-        );
-        console.log('[wixCart] addItem -> line item catalogReference:', JSON.stringify(added?.catalogReference));
         return Response.json({ cart, cartId: cart?._id || null });
       } catch (e) {
         console.error('[wixCart] addItem failed:', e.message, e.details ? JSON.stringify(e.details) : '');
