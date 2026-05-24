@@ -11,7 +11,8 @@ Deno.serve(async (req) => {
     const clientId = Deno.env.get('WIX_CLIENT_ID');
     const clientSecret = Deno.env.get('WIX_CLIENT_SECRET');
     const instanceId = Deno.env.get('WIX_INSTANCE_ID');
-    if (!clientId || !clientSecret || !instanceId) {
+    const apiKey = Deno.env.get('WIX_API_KEY');
+    if (!clientId || !clientSecret || !instanceId || !apiKey) {
       return Response.json({ error: 'Missing Wix credentials' }, { status: 500 });
     }
 
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
     try {
       memberTokens = await wix.auth.getMemberTokensForExternalLogin(
         member._id,
-        clientSecret
+        apiKey
       );
     } catch (e) {
       mintError = e?.message || String(e);
