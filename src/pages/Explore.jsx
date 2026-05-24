@@ -8,7 +8,7 @@ const facilities = [
     image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/d0c360925_store.png',
     name: 'Supply Depot',
     description: 'Gear up for the mission — tactical hairballs, zero-gravity cat trees, and nebula-nip from our shop.',
-    link: '/',
+    link: '/shop',
     linkText: 'Browse the shelves →',
   },
   {

@@ -77,7 +77,7 @@ export default function ProductDetail() {
       <Header />
       <main className="pt-24 md:pt-28 pb-20">
         <div className="px-[6vw] md:px-[8vw] mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm transition-colors">
+          <Link to="/shop" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Collection
           </Link>
         </div>

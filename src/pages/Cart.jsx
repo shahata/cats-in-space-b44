@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import CartItem from '../components/CartItem';
@@ -6,7 +7,21 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Cart() {
-  const { lineItems: items, updateItem: updateQuantity, removeItem, total, formattedTotal, count, loading, actionLoading } = useWixCart();
+  const { lineItems: items, updateItem: updateQuantity, removeItem, total, formattedTotal, count, loading, actionLoading, createCheckout } = useWixCart();
+  const [submitting, setSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+
+  const handleCheckout = async () => {
+    setSubmitting(true);
+    setCheckoutError('');
+    const res = await createCheckout();
+    if (res?.checkoutUrl) {
+      window.location.href = res.checkoutUrl;
+      return;
+    }
+    setCheckoutError(res?.error || 'Could not start checkout. Please try again.');
+    setSubmitting(false);
+  };
 
   if (loading) {
     return (
@@ -55,12 +70,14 @@ export default function Cart() {
                   <span className="text-muted-foreground text-sm">Total ({count} {count === 1 ? 'item' : 'items'})</span>
                   <span className="font-mono text-2xl">{formattedTotal || `${total.toFixed(2)}`}</span>
                 </div>
-                <Link
-                  to="/checkout"
-                  className="w-full md:w-auto px-12 py-4 bg-primary text-primary-foreground font-body text-sm tracking-wide hover:opacity-90 transition-opacity text-center"
+                {checkoutError && <p className="text-destructive text-sm">{checkoutError}</p>}
+                <button
+                  onClick={handleCheckout}
+                  disabled={submitting}
+                  className="w-full md:w-auto px-12 py-4 bg-primary text-primary-foreground font-body text-sm tracking-wide hover:opacity-90 transition-opacity text-center disabled:opacity-60"
                 >
-                  Proceed to Checkout
-                </Link>
+                  {submitting ? 'Redirecting…' : 'Proceed to Checkout'}
+                </button>
               </div>
             </>
           )}
