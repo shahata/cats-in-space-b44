@@ -10,6 +10,7 @@ Deno.serve(async (req) => {
     const clientId = Deno.env.get('WIX_CLIENT_ID');
     const clientSecret = Deno.env.get('WIX_CLIENT_SECRET');
     const instanceId = Deno.env.get('WIX_INSTANCE_ID');
+    const apiKey = Deno.env.get('WIX_API_KEY');
     if (!clientId) return Response.json({ error: 'Missing WIX_CLIENT_ID' }, { status: 500 });
 
     const wix = createClient({ auth: OAuthStrategy({ clientId }) });
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
     } catch { /* visitor */ }
 
     // Visitor path
-    if (!user || !clientSecret || !instanceId) {
+    if (!user || !clientSecret || !instanceId || !apiKey) {
       const visitorTokens = await wix.auth.generateVisitorTokens().catch(e => {
         console.error('[wixSession] visitor tokens:', e.message);
         return null;
@@ -51,9 +52,18 @@ Deno.serve(async (req) => {
       return Response.json({ kind: 'visitor', tokens: visitorTokens, reason: 'no_member' });
     }
 
+    // SDK builds Authorization as `${accessToken},${apiKey}` — mint visitor
+    // tokens first so accessToken isn't empty (otherwise Wix returns
+    // `unauthorized_client`).
+    const visitorTokens = await wix.auth.generateVisitorTokens().catch(e => {
+      console.error('[wixSession] visitor tokens for mint:', e.message);
+      return null;
+    });
+    if (visitorTokens) wix.auth.setTokens(visitorTokens);
+
     const memberTokens = await wix.auth.getMemberTokensForExternalLogin(
       member._id,
-      clientSecret
+      apiKey
     ).catch(e => {
       console.error('[wixSession] mint tokens:', e.message);
       return null;
