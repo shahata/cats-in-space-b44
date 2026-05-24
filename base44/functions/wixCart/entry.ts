@@ -40,11 +40,6 @@ Deno.serve(async (req) => {
     if (action === 'get') {
       try {
         const cart = await wix.currentCart.getCurrentCart();
-        const first = cart?.lineItems?.[0];
-        if (first) {
-          console.log('[wixCart] line item keys:', Object.keys(first));
-          console.log('[wixCart] first line item sample:', JSON.stringify(first).slice(0, 800));
-        }
         return Response.json({ cart, cartId: cart?._id || null });
       } catch (e) {
         if (isCartNotFound(e)) return Response.json({ cart: null, cartId: null });
@@ -114,19 +109,26 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Could not create checkout', checkoutUrl: null });
       }
       const origin = postFlowUrl || '';
-      const redirect = await wix.redirects.createRedirectSession({
-        ecomCheckout: { checkoutId: checkoutRes.checkoutId },
-        callbacks: {
-          postFlowUrl: origin,
-          thankYouPageUrl: origin ? `${origin}/order-confirmation` : undefined,
-        },
-      }).catch(e => {
-        console.error('[wixCart] redirect:', e.message);
-        return null;
-      });
+      let redirect = null;
+      let redirectError = null;
+      try {
+        redirect = await wix.redirects.createRedirectSession({
+          ecomCheckout: { checkoutId: checkoutRes.checkoutId },
+          callbacks: {
+            postFlowUrl: origin,
+            thankYouPageUrl: origin ? `${origin}/order-confirmation` : undefined,
+          },
+        });
+      } catch (e) {
+        redirectError = e?.message || String(e);
+        const details = e?.details ? JSON.stringify(e.details) : '';
+        console.error('[wixCart] redirect failed:', redirectError, details);
+        if (details) redirectError = `${redirectError} | ${details}`;
+      }
       return Response.json({
         checkoutId: checkoutRes.checkoutId,
         checkoutUrl: redirect?.redirectSession?.fullUrl || null,
+        error: redirect?.redirectSession?.fullUrl ? undefined : (redirectError || 'No redirect URL returned'),
       });
     }
 
