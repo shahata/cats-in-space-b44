@@ -111,6 +111,41 @@ Deno.serve(async (req) => {
       const origin = postFlowUrl || '';
       let redirect = null;
       let redirectError = null;
+
+      // ─── DEBUG: intercept fetch to log the outgoing redirect call as curl ───
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+        const method = (init.method || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
+        const headers = init.headers || (typeof input !== 'string' && input.headers) || {};
+        const headerObj = {};
+        if (headers instanceof Headers) {
+          headers.forEach((v, k) => { headerObj[k] = v; });
+        } else if (Array.isArray(headers)) {
+          headers.forEach(([k, v]) => { headerObj[k] = v; });
+        } else {
+          Object.assign(headerObj, headers);
+        }
+        const body = init.body || null;
+
+        if (/redirect-session|redirects/i.test(url)) {
+          const headerArgs = Object.entries(headerObj)
+            .map(([k, v]) => `  -H ${JSON.stringify(`${k}: ${v}`)}`)
+            .join(' \\\n');
+          const bodyArg = body ? ` \\\n  --data ${JSON.stringify(typeof body === 'string' ? body : JSON.stringify(body))}` : '';
+          console.log('[wixCart] >>> CURL <<<\ncurl -X ' + method + ' ' + JSON.stringify(url) + ' \\\n' + headerArgs + bodyArg);
+        }
+
+        const res = await originalFetch(input, init);
+
+        if (/redirect-session|redirects/i.test(url)) {
+          const clone = res.clone();
+          const text = await clone.text().catch(() => '');
+          console.log('[wixCart] >>> RESPONSE <<<\nstatus:', res.status, '\nbody:', text);
+        }
+        return res;
+      };
+
       try {
         redirect = await wix.redirects.createRedirectSession({
           ecomCheckout: { checkoutId: checkoutRes.checkoutId },
@@ -124,6 +159,8 @@ Deno.serve(async (req) => {
         const details = e?.details ? JSON.stringify(e.details) : '';
         console.error('[wixCart] redirect failed:', redirectError, details);
         if (details) redirectError = `${redirectError} | ${details}`;
+      } finally {
+        globalThis.fetch = originalFetch;
       }
       return Response.json({
         checkoutId: checkoutRes.checkoutId,
