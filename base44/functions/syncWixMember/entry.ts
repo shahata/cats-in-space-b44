@@ -63,6 +63,32 @@ Deno.serve(async (req) => {
 
     let memberTokens = null;
     let mintError = null;
+    let capturedRequest = null;
+
+    // Monkey-patch fetch to capture the exact outbound request
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : input?.url;
+      if (url && url.includes('wixapis.com')) {
+        capturedRequest = {
+          url,
+          method: init?.method || 'GET',
+          headers: init?.headers ? Object.fromEntries(
+            init.headers instanceof Headers
+              ? init.headers.entries()
+              : Object.entries(init.headers)
+          ) : {},
+          body: init?.body ? (typeof init.body === 'string' ? init.body : '[non-string body]') : null,
+        };
+        // Redact secrets for logging
+        const safeHeaders = { ...capturedRequest.headers };
+        if (safeHeaders.Authorization) safeHeaders.Authorization = `[REDACTED len=${safeHeaders.Authorization.length}]`;
+        if (safeHeaders.authorization) safeHeaders.authorization = `[REDACTED len=${safeHeaders.authorization.length}]`;
+        console.log('[syncWixMember] OUTBOUND fetch:', JSON.stringify({ ...capturedRequest, headers: safeHeaders }, null, 2));
+      }
+      return originalFetch(input, init);
+    };
+
     try {
       memberTokens = await wix.auth.getMemberTokensForExternalLogin(
         member._id,
@@ -71,13 +97,26 @@ Deno.serve(async (req) => {
     } catch (e) {
       mintError = e?.message || String(e);
       console.error('[syncWixMember] getMemberTokensForExternalLogin:', mintError, e?.details || '');
+    } finally {
+      globalThis.fetch = originalFetch;
     }
+
+    // Redact Authorization header for response too
+    const safeCaptured = capturedRequest ? {
+      ...capturedRequest,
+      headers: Object.fromEntries(
+        Object.entries(capturedRequest.headers).map(([k, v]) =>
+          /authorization/i.test(k) ? [k, `[REDACTED len=${String(v).length}]`] : [k, v]
+        )
+      ),
+    } : null;
 
     return Response.json({
       synced: true,
       memberId: member._id,
       tokens: memberTokens,
       mintError,
+      capturedRequest: safeCaptured,
     });
   } catch (err) {
     console.error('[syncWixMember] Exception:', err.message);
