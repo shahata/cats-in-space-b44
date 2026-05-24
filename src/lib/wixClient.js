@@ -29,6 +29,16 @@ export function getStoredKind() {
   return localStorage.getItem(KIND_KEY) || null;
 }
 
+/**
+ * Returns the current Wix access token value (member or visitor), or null.
+ * Use this when calling backend functions that need to act on behalf of the
+ * current Wix session (e.g. cart operations).
+ */
+export function getWixAccessToken() {
+  const tokens = readTokens();
+  return tokens?.accessToken?.value || null;
+}
+
 let _client = null;
 
 function getClientId() {
