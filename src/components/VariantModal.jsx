@@ -8,13 +8,14 @@ export default function VariantModal({ product, onAdd, onClose }) {
   const [error, setError] = useState('');
 
   const options = product.productOptions || [];
+  const optKey = o => o.id || o.name;
 
-  const allSelected = options.every(o => selections[o.name]);
+  const allSelected = options.every(o => selections[optKey(o)]);
 
   const getMatchingVariant = () => {
     if (!product.variants?.length) return null;
     return product.variants.find(v =>
-      options.every(o => v.choices?.[o.name] === selections[o.name])
+      options.every(o => v.choices?.[optKey(o)] === selections[optKey(o)])
     );
   };
 
@@ -71,20 +72,23 @@ export default function VariantModal({ product, onAdd, onClose }) {
           </div>
 
           <div className="space-y-5">
-            {options.map(option => (
-              <div key={option.name}>
+            {options.map(option => {
+              const okey = optKey(option);
+              return (
+              <div key={okey}>
                 <p className="text-xs tracking-widest uppercase text-muted-foreground mb-2 font-mono">{option.name}</p>
                 <div className="flex flex-wrap gap-2">
                   {option.choices.map(choice => {
+                    const cid = typeof choice === 'object' ? (choice.id || choice.value) : choice;
                     const val = typeof choice === 'object' ? choice.value : choice;
                     const available = typeof choice === 'object' ? choice.inStock !== false : true;
                     return (
                       <button
-                        key={val}
+                        key={cid}
                         disabled={!available}
-                        onClick={() => available && setSelections(s => ({ ...s, [option.name]: val }))}
+                        onClick={() => available && setSelections(s => ({ ...s, [okey]: cid }))}
                         className={`px-4 py-2 text-sm border transition-all relative ${
-                          selections[option.name] === val
+                          selections[okey] === cid
                             ? 'bg-primary text-primary-foreground border-primary'
                             : available
                               ? 'bg-transparent text-foreground border-border hover:border-foreground'
@@ -97,7 +101,8 @@ export default function VariantModal({ product, onAdd, onClose }) {
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {error && <p className="text-destructive text-sm mt-4">{error}</p>}

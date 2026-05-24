@@ -52,10 +52,14 @@ Deno.serve(async () => {
         || (minPrice ? `${currency} ${minPrice}` : '');
 
       const v3Variants = p.variantsInfo?.variants || [];
+      // Key variant choices by optionId -> choiceId for reliable matching
+      // regardless of localized option/choice names.
       const variants = v3Variants.map(v => ({
         id: v._id || v.id,
         choices: (v.choices || []).reduce((acc, c) => {
-          acc[c.optionChoiceNames?.optionName || c.optionId] = c.optionChoiceNames?.choiceName || c.choiceId;
+          const oid = c.optionChoiceIds?.optionId || c.optionId;
+          const cid = c.optionChoiceIds?.choiceId || c.choiceId;
+          if (oid) acc[oid] = cid;
           return acc;
         }, {}),
         price: parseFloat(v.price?.actualPrice?.amount || minPrice),
@@ -72,8 +76,10 @@ Deno.serve(async () => {
         .filter(c => c.id);
 
       const options = (p.options || []).map(o => ({
+        id: o._id || o.id || o.name,
         name: o.name,
         choices: (o.choicesSettings?.choices || []).map(c => ({
+          id: c.choiceId || c._id || c.key || c.name,
           value: c.name || c.key,
           inStock: true,
         })),

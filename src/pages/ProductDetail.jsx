@@ -46,11 +46,14 @@ export default function ProductDetail() {
 
   const images = product.gallery?.length > 0 ? product.gallery : (product.image ? [product.image] : []);
   const options = product.productOptions || [];
-  const allSelected = options.every(o => selections[o.name]);
+  const optKey = o => o.id || o.name;
+  const allSelected = options.every(o => selections[optKey(o)]);
 
   const getMatchingVariant = () => {
     if (!product.variants?.length) return null;
-    return product.variants.find(v => options.every(o => v.choices?.[o.name] === selections[o.name]));
+    return product.variants.find(v =>
+      options.every(o => v.choices?.[optKey(o)] === selections[optKey(o)])
+    );
   };
 
   const handleAdd = async () => {
@@ -137,20 +140,23 @@ export default function ProductDetail() {
             {/* Variants */}
             {options.length > 0 && (
               <div className="space-y-5 mb-8">
-                {options.map(option => (
-                  <div key={option.name}>
+                {options.map(option => {
+                  const okey = optKey(option);
+                  return (
+                  <div key={okey}>
                     <p className="text-xs tracking-widest uppercase text-muted-foreground mb-3 font-mono">{option.name}</p>
                     <div className="flex flex-wrap gap-2">
                       {option.choices.map(choice => {
+                        const cid = typeof choice === 'object' ? (choice.id || choice.value) : choice;
                         const val = typeof choice === 'object' ? choice.value : choice;
                         const available = typeof choice === 'object' ? choice.inStock !== false : true;
                         return (
                           <button
-                            key={val}
+                            key={cid}
                             disabled={!available}
-                            onClick={() => available && setSelections(s => ({ ...s, [option.name]: val }))}
+                            onClick={() => available && setSelections(s => ({ ...s, [okey]: cid }))}
                             className={`px-5 py-2.5 text-sm border transition-all ${
-                              selections[option.name] === val
+                              selections[okey] === cid
                                 ? 'bg-primary text-primary-foreground border-primary'
                                 : available
                                   ? 'bg-transparent text-foreground border-border hover:border-foreground'
@@ -163,7 +169,8 @@ export default function ProductDetail() {
                       })}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

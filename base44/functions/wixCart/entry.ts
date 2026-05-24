@@ -4,6 +4,7 @@
 // identity automatically — no manual cartId required.
 import { createClient, OAuthStrategy } from 'npm:@wix/sdk@1.21.12';
 import { currentCart, checkout } from 'npm:@wix/ecom@1.0.2074';
+import { redirects } from 'npm:@wix/redirects@1.0.114';
 
 // Wix Stores V3 appId — required when adding products fetched via productsV3.
 // The legacy V1 appId (1380b703-...) will be silently accepted but Wix will
@@ -12,7 +13,7 @@ const WIX_STORES_APP_ID = '215238eb-22a5-4c36-9e7b-e7c08025e04e';
 
 function buildClient(clientId, wixTokens) {
   return createClient({
-    modules: { currentCart, checkout },
+    modules: { currentCart, checkout, redirects },
     auth: OAuthStrategy({ clientId, tokens: wixTokens }),
   });
 }
@@ -113,8 +114,8 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Could not create checkout', checkoutUrl: null });
       }
       const origin = postFlowUrl || '';
-      const redirect = await wix.checkout.createRedirectSession({
-        checkoutId: checkoutRes.checkoutId,
+      const redirect = await wix.redirects.createRedirectSession({
+        ecomCheckout: { checkoutId: checkoutRes.checkoutId },
         callbacks: {
           postFlowUrl: origin,
           thankYouPageUrl: origin ? `${origin}/order-confirmation` : undefined,
