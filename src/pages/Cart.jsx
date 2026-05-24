@@ -29,7 +29,7 @@ export default function Cart() {
       <Header />
       <main className="px-[6vw] md:px-[8vw] pt-28 md:pt-36 pb-20 max-w-3xl mx-auto relative z-10">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-10 transition-colors">
+          <Link to="/shop" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-10 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Continue shopping
           </Link>
 
@@ -38,7 +38,7 @@ export default function Cart() {
           {items.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-muted-foreground mb-6">Your bag is empty.</p>
-              <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline underline-offset-4 text-sm">
+              <Link to="/shop" className="inline-flex items-center gap-2 text-primary hover:underline underline-offset-4 text-sm">
                 Explore the collection <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

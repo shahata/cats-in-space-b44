@@ -1,11 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { base44 } from '@/api/base44Client';
 
-export default function VariantModal({ product, onAdd, onClose }) {
+export default function VariantModal({ product: initialProduct, onAdd, onClose }) {
+  const [product, setProduct] = useState(initialProduct);
   const [selections, setSelections] = useState({});
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
+  const [loadingVariants, setLoadingVariants] = useState(false);
+
+  // List-view products don't include variantsInfo (Wix searchProducts limitation),
+  // so lazy-fetch the full product when the modal opens.
+  useEffect(() => {
+    const needsVariants = (initialProduct.productOptions?.length || 0) > 0 && !(initialProduct.variants?.length);
+    if (!needsVariants) return;
+    setLoadingVariants(true);
+    base44.functions.invoke('getWixProducts', { productId: initialProduct.wixId || initialProduct.id })
+      .then(res => {
+        const full = res.data.products?.[0];
+        if (full) setProduct(full);
+      })
+      .finally(() => setLoadingVariants(false));
+  }, [initialProduct]);
 
   const options = product.productOptions || [];
   const optKey = o => o.id || o.name;
@@ -109,10 +126,10 @@ export default function VariantModal({ product, onAdd, onClose }) {
 
           <button
             onClick={handleAdd}
-            disabled={adding}
+            disabled={adding || loadingVariants}
             className="w-full mt-8 py-4 bg-primary text-primary-foreground text-sm tracking-wide hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            {adding ? 'Adding…' : 'Add to Bag'}
+            {loadingVariants ? 'Loading…' : adding ? 'Adding…' : 'Add to Bag'}
           </button>
         </motion.div>
       </div>

@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import Header from '../components/Header';
-import ProductCard from '../components/ProductCard';
-import useWixCart from '../lib/useWixCart';
 import { motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { getStatusClass } from '../lib/wixUtils';
@@ -11,25 +9,20 @@ import { getStatusClass } from '../lib/wixUtils';
 const HERO_IMG = 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1800&q=80';
 
 export default function Home() {
-  const [products, setProducts] = useState([]);
   const [planets, setPlanets] = useState([]);
   const [crew, setCrew] = useState([]);
   const [missions, setMissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { addItem } = useWixCart();
 
   useEffect(() => {
     Promise.all([
-      base44.functions.invoke('getWixProducts', {}).then(r => r.data.products || []).catch(() => []),
       base44.functions.invoke('getWixCMSData', { collectionId: 'Planets', limit: 3, sort: [{ fieldName: 'habitabilityScore', order: 'DESC' }] }).then(r => r.data.items || []).catch(() => []),
       base44.functions.invoke('getWixCMSData', { collectionId: 'CatExplorers', limit: 6 }).then(r => r.data.items || []).catch(() => []),
       base44.functions.invoke('getWixCMSData', { collectionId: 'Missions', limit: 4, includeRefs: ['crew', 'planet'] }).then(r => r.data.items || []).catch(() => []),
-    ]).then(([prods, pls, cr, mis]) => {
-      setProducts(prods);
+    ]).then(([pls, cr, mis]) => {
       setPlanets(pls);
       setCrew(cr);
       setMissions(mis);
-    }).finally(() => setLoading(false));
+    });
   }, []);
 
   return (
@@ -200,25 +193,7 @@ export default function Home() {
         )}
       </section>
 
-      {/* Shop Collection */}
-      <section id="collection" className="px-[6vw] md:px-[8vw] py-20 border-t border-border/30">
-        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="flex items-baseline justify-between mb-14">
-          <div>
-            <p className="font-mono text-xs tracking-widest uppercase text-primary mb-2">★ Space Gear ★</p>
-            <h2 className="font-display text-4xl md:text-6xl tracking-widest text-foreground uppercase">Mission Supplies</h2>
-          </div>
-          {products.length > 0 && <span className="font-mono text-sm text-muted-foreground">{products.length} items</span>}
-        </motion.div>
-        {loading ? (
-          <div className="flex items-center justify-center py-32"><div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" /></div>
-        ) : products.length === 0 ? (
-          <p className="text-muted-foreground text-center py-32 font-body">No products available yet.</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-5 gap-y-14">
-            {products.map((p, i) => <ProductCard key={p.id} product={p} onAdd={addItem} index={i} />)}
-          </div>
-        )}
-      </section>
+
 
       {/* Quote */}
       <section className="text-center py-16 border-t border-border/30 px-[6vw]">
