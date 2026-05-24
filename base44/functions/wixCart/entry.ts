@@ -36,6 +36,11 @@ Deno.serve(async (req) => {
     if (action === 'get') {
       try {
         const cart = await wix.currentCart.getCurrentCart();
+        const first = cart?.lineItems?.[0];
+        if (first) {
+          console.log('[wixCart] line item keys:', Object.keys(first));
+          console.log('[wixCart] first line item sample:', JSON.stringify(first).slice(0, 800));
+        }
         return Response.json({ cart, cartId: cart?._id || null });
       } catch (e) {
         if (isCartNotFound(e)) return Response.json({ cart: null, cartId: null });
@@ -59,12 +64,20 @@ Deno.serve(async (req) => {
         },
         quantity: quantity || 1,
       };
-      const res = await wix.currentCart.addToCurrentCart({ lineItems: [item] }).catch(e => {
-        console.error('[wixCart] addItem:', e.message);
-        return null;
-      });
-      const cart = res?.cart || null;
-      return Response.json({ cart, cartId: cart?._id || null });
+      console.log('[wixCart] addItem input:', JSON.stringify({ productId, variantId, choices }));
+      console.log('[wixCart] addItem catalogReference:', JSON.stringify(item.catalogReference));
+      try {
+        const res = await wix.currentCart.addToCurrentCart({ lineItems: [item] });
+        const cart = res?.cart || null;
+        const added = cart?.lineItems?.find(li =>
+          (li.catalogReference?.catalogItemId || li.productId) === productId
+        );
+        console.log('[wixCart] addItem -> line item catalogReference:', JSON.stringify(added?.catalogReference));
+        return Response.json({ cart, cartId: cart?._id || null });
+      } catch (e) {
+        console.error('[wixCart] addItem failed:', e.message, e.details ? JSON.stringify(e.details) : '');
+        return Response.json({ cart: null, cartId: null, error: e.message });
+      }
     }
 
     if (action === 'removeItem') {
