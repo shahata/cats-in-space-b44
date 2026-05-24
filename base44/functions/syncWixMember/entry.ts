@@ -63,28 +63,31 @@ Deno.serve(async (req) => {
 
     let memberTokens = null;
     let mintError = null;
-    let capturedRequest = null;
+    const capturedRequests = [];
 
-    // Monkey-patch fetch to capture the exact outbound request
+    // Monkey-patch fetch to capture ALL outbound requests
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input, init) => {
       const url = typeof input === 'string' ? input : input?.url;
-      if (url && url.includes('wixapis.com')) {
-        capturedRequest = {
+      if (url && (url.includes('wixapis.com') || url.includes('wix.com'))) {
+        const headers = init?.headers ? Object.fromEntries(
+          init.headers instanceof Headers
+            ? init.headers.entries()
+            : Object.entries(init.headers)
+        ) : {};
+        const entry = {
           url,
           method: init?.method || 'GET',
-          headers: init?.headers ? Object.fromEntries(
-            init.headers instanceof Headers
-              ? init.headers.entries()
-              : Object.entries(init.headers)
-          ) : {},
+          headers,
           body: init?.body ? (typeof init.body === 'string' ? init.body : '[non-string body]') : null,
         };
-        // Redact secrets for logging
-        const safeHeaders = { ...capturedRequest.headers };
-        if (safeHeaders.Authorization) safeHeaders.Authorization = `[REDACTED len=${safeHeaders.Authorization.length}]`;
-        if (safeHeaders.authorization) safeHeaders.authorization = `[REDACTED len=${safeHeaders.authorization.length}]`;
-        console.log('[syncWixMember] OUTBOUND fetch:', JSON.stringify({ ...capturedRequest, headers: safeHeaders }, null, 2));
+        capturedRequests.push(entry);
+        const safeHeaders = Object.fromEntries(
+          Object.entries(headers).map(([k, v]) =>
+            /authorization/i.test(k) ? [k, `[REDACTED len=${String(v).length}]`] : [k, v]
+          )
+        );
+        console.log(`[syncWixMember] OUTBOUND #${capturedRequests.length}:`, JSON.stringify({ ...entry, headers: safeHeaders }, null, 2));
       }
       return originalFetch(input, init);
     };
@@ -101,22 +104,22 @@ Deno.serve(async (req) => {
       globalThis.fetch = originalFetch;
     }
 
-    // Redact Authorization header for response too
-    const safeCaptured = capturedRequest ? {
-      ...capturedRequest,
+    // Redact Authorization headers in all captured requests
+    const safeCaptured = capturedRequests.map(r => ({
+      ...r,
       headers: Object.fromEntries(
-        Object.entries(capturedRequest.headers).map(([k, v]) =>
+        Object.entries(r.headers).map(([k, v]) =>
           /authorization/i.test(k) ? [k, `[REDACTED len=${String(v).length}]`] : [k, v]
         )
       ),
-    } : null;
+    }));
 
     return Response.json({
       synced: true,
       memberId: member._id,
       tokens: memberTokens,
       mintError,
-      capturedRequest: safeCaptured,
+      capturedRequests: safeCaptured,
     });
   } catch (err) {
     console.error('[syncWixMember] Exception:', err.message);
