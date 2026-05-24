@@ -2,7 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 
 const CART_ID_KEY = 'wix_cart_id';
-const VISITOR_TOKEN_KEY = 'wix_visitor_token';
+const SESSION_TOKENS_KEY = 'wix_session_tokens';
+
+// Pull the current access token from the Wix session stored by wixClient.js
+// (populated by the wixSession backend function). This is what the cart
+// function expects as `visitorToken`.
+function getAccessToken() {
+  try {
+    const raw = localStorage.getItem(SESSION_TOKENS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.accessToken?.value || null;
+  } catch { return null; }
+}
 
 function getStored(key) {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -19,18 +31,16 @@ export default function useWixCart() {
   const applyResponse = useCallback((resData) => {
     if (resData.cart) setCart(resData.cart);
     if (resData.cartId) setStored(CART_ID_KEY, resData.cartId);
-    if (resData.visitorToken) setStored(VISITOR_TOKEN_KEY, resData.visitorToken);
   }, []);
 
   const clearCart = useCallback(() => {
     setStored(CART_ID_KEY, null);
-    setStored(VISITOR_TOKEN_KEY, null);
     setCart(null);
   }, []);
 
   const invoke = useCallback(async (payload) => {
     const cartId = getStored(CART_ID_KEY);
-    const visitorToken = getStored(VISITOR_TOKEN_KEY);
+    const visitorToken = getAccessToken();
     try {
       const res = await base44.functions.invoke('wixCart', { ...payload, cartId, visitorToken });
       applyResponse(res.data);
@@ -47,7 +57,7 @@ export default function useWixCart() {
 
   const fetchCart = useCallback(async () => {
     const cartId = getStored(CART_ID_KEY);
-    const visitorToken = getStored(VISITOR_TOKEN_KEY);
+    const visitorToken = getAccessToken();
     if (!cartId || !visitorToken) {
       setLoading(false);
       return;
