@@ -18,9 +18,8 @@ export default function ProductDetail() {
   const { addItem } = useWixCart();
 
   useEffect(() => {
-    base44.functions.invoke('getWixProducts', {}).then(res => {
-      const found = res.data.products?.find(p => p.id === id || p.wixId === id);
-      setProduct(found || null);
+    base44.functions.invoke('getWixProducts', { productId: id }).then(res => {
+      setProduct(res.data.products?.[0] || null);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [id]);
