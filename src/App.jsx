@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { refreshWixSession, clearWixSession } from '@/lib/wixClient';
+import { refreshWixSession, clearWixSession, getWixTokens, getStoredKind } from '@/lib/wixClient';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -39,12 +39,19 @@ const AuthenticatedApp = () => {
     let cancelled = false;
     base44.auth.isAuthenticated().then(async authed => {
       if (cancelled) return;
+      const storedKind = getStoredKind();
+      const hasTokens = !!getWixTokens()?.accessToken?.value;
       if (authed) {
         await base44.functions.invoke('syncWixMember', {}).catch(() => {});
+        // Mint member tokens only if we don't already have a member session
+        if (storedKind !== 'member') await refreshWixSession();
       } else {
-        clearWixSession();
+        // If we previously had a member session, drop it now that we're a visitor
+        if (storedKind === 'member') clearWixSession();
+        // Mint visitor tokens only if we don't already have any — keeps the
+        // same visitor (and therefore the same cart) across page refreshes.
+        if (!hasTokens || storedKind === 'member') await refreshWixSession();
       }
-      await refreshWixSession();
     });
     return () => { cancelled = true; };
   }, []);
