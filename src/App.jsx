@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { refreshWixSession, clearWixSession } from '@/lib/wixClient';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -36,9 +37,17 @@ const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
 
   useEffect(() => {
-    base44.auth.isAuthenticated().then(authed => {
-      if (authed) base44.functions.invoke('syncWixMember', {}).catch(() => {});
+    let cancelled = false;
+    base44.auth.isAuthenticated().then(async authed => {
+      if (cancelled) return;
+      if (authed) {
+        await base44.functions.invoke('syncWixMember', {}).catch(() => {});
+      } else {
+        clearWixSession();
+      }
+      await refreshWixSession();
     });
+    return () => { cancelled = true; };
   }, []);
 
   // Show loading spinner while checking app public settings or auth
