@@ -15,6 +15,29 @@ export default function Explore() {
       return res.data?.items || [];
     },
   });
+
+  const { data: exploreLinks = [] } = useQuery({
+    queryKey: ['cms', 'ExploreLinks'],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getWixCMSData', {
+        collectionId: 'ExploreLinks',
+        sort: [{ fieldName: 'order', order: 'ASC' }],
+      });
+      return res.data?.items || [];
+    },
+  });
+
+  const { data: cta } = useQuery({
+    queryKey: ['cms', 'SiteCTAs', 'join-the-crew'],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getWixCMSData', {
+        collectionId: 'SiteCTAs',
+        filter: { key: 'join-the-crew' },
+        limit: 1,
+      });
+      return res.data?.items?.[0] || null;
+    },
+  });
   return (
     <div className="min-h-screen bg-background font-body">
       <Header />
@@ -58,17 +81,13 @@ export default function Explore() {
 
         {/* Navigation sections */}
         <div className="grid md:grid-cols-3 gap-6">
-          {[
-            { image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/2759063ca_research.png', title: 'Planet Database', desc: 'All surveyed worlds ranked by habitability for feline life.', link: '/planets', linkText: 'Explore Planets →' },
-            { image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/997288998_plans.png', title: 'Crew Roster', desc: 'The bravest cats to ever leave a perfectly good cardboard box behind.', link: '/crew', linkText: 'Meet the Crew →' },
-            { image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/b2e26739c_log.png', title: 'Mission Control', desc: 'Tracking every whisker-raising expedition into the unknown.', link: '/missions', linkText: 'All Missions →' },
-          ].map((item, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + i * 0.1 }}>
+          {exploreLinks.map((item, i) => (
+            <motion.div key={item._id || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + i * 0.1 }}>
               <Link to={item.link} className="block bg-card border border-border overflow-hidden hover:border-primary/40 p-0 group transition-colors h-full flex flex-col">
                 <img src={item.image} alt={item.title} className="w-full h-40 object-cover" />
                 <div className="p-6 flex flex-col flex-1">
                   <h3 className="font-display text-xl tracking-wider text-foreground group-hover:text-primary uppercase mb-2 transition-colors">{item.title}</h3>
-                  <p className="text-muted-foreground text-xs mb-4">{item.desc}</p>
+                  <p className="text-muted-foreground text-xs mb-4">{item.description}</p>
                   <span className="text-primary text-sm font-mono mt-auto">{item.linkText}</span>
                 </div>
               </Link>
@@ -77,22 +96,23 @@ export default function Explore() {
         </div>
 
         {/* Membership CTA */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
-          className="mt-16 text-center border border-border bg-card p-12 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <img src="https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/b2e26739c_log.png" alt="" className="w-full h-full object-cover" />
-          </div>
-          <div className="relative z-10">
-            <h2 className="font-display text-3xl tracking-widest text-primary uppercase mb-4">Join the Crew</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto mb-8 text-sm">
-              A crew membership unlocks premium Ship's Log dispatches, complimentary medical appointments,
-              discounted tickets at The Nebula Theater, and first dibs on supply-depot restocks.
-            </p>
-            <Link to="/plans" className="inline-block bg-primary text-primary-foreground px-8 py-3 font-display text-lg tracking-widest uppercase hover:bg-primary/80 transition-colors">
-              Choose Your Rank →
-            </Link>
-          </div>
-        </motion.div>
+        {cta && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
+            className="mt-16 text-center border border-border bg-card p-12 relative overflow-hidden">
+            {cta.image && (
+              <div className="absolute inset-0 opacity-10">
+                <img src={cta.image} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div className="relative z-10">
+              <h2 className="font-display text-3xl tracking-widest text-primary uppercase mb-4">{cta.title}</h2>
+              <p className="text-muted-foreground max-w-lg mx-auto mb-8 text-sm">{cta.body}</p>
+              <Link to={cta.buttonLink} className="inline-block bg-primary text-primary-foreground px-8 py-3 font-display text-lg tracking-widest uppercase hover:bg-primary/80 transition-colors">
+                {cta.buttonText}
+              </Link>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
