@@ -1,43 +1,20 @@
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import { motion } from 'framer-motion';
-
-const facilities = [
-  {
-    deck: 'DECK 2',
-    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/d0c360925_store.png',
-    name: 'Supply Depot',
-    description: 'Gear up for the mission — tactical hairballs, zero-gravity cat trees, and nebula-nip from our shop.',
-    link: '/shop',
-    linkText: 'Browse the shelves →',
-  },
-  {
-    deck: 'DECK 3',
-    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/526689902_clinic.png',
-    name: 'Medical Bay',
-    description: 'Routine checkups, vaccinations against alien parasites, and that annoying hairball cough.',
-    link: '/medical-bay',
-    linkText: 'Book appointment →',
-  },
-  {
-    deck: 'DECK 5',
-    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/236dac4c5_restaurant.png',
-    name: 'The Cosmic Kitchen',
-    description: 'Intergalactic cuisine, pickup and delivery across the ship. The Nebula Nachos are legendary.',
-    link: '/restaurant',
-    linkText: 'Order now →',
-  },
-  {
-    deck: 'DECK 7',
-    image: 'https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/b5b5cdceb_cinema.png',
-    name: 'The Nebula Theater',
-    description: 'Weekly screenings of cat-themed classics — Star Paws, The Meowtrix, Cat-ablanca — every weeknight at 20:00 sharp.',
-    link: '/cinema',
-    linkText: "See what's playing →",
-  },
-];
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
 
 export default function Explore() {
+  const { data: facilities = [], isLoading } = useQuery({
+    queryKey: ['cms', 'Facilities'],
+    queryFn: async () => {
+      const res = await base44.functions.invoke('getWixCMSData', {
+        collectionId: 'Facilities',
+        sort: [{ fieldName: 'order', order: 'ASC' }],
+      });
+      return res.data?.items || [];
+    },
+  });
   return (
     <div className="min-h-screen bg-background font-body">
       <Header />
@@ -58,9 +35,12 @@ export default function Explore() {
           <h2 className="font-display text-3xl tracking-widest text-primary uppercase mb-2">Facilities on Board</h2>
           <p className="text-muted-foreground mb-10 text-sm">Everyone's welcome in the public areas</p>
 
+          {isLoading ? (
+            <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" /></div>
+          ) : (
           <div className="grid md:grid-cols-2 gap-6">
             {facilities.map((f, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.1 }}>
+              <motion.div key={f._id || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.1 }}>
                 <div className="bg-card border border-border overflow-hidden h-full flex flex-col">
                   <img src={f.image} alt={f.name} className="w-full h-48 object-cover" />
                   <div className="p-6 flex flex-col flex-1">
@@ -73,6 +53,7 @@ export default function Explore() {
               </motion.div>
             ))}
           </div>
+          )}
         </div>
 
         {/* Navigation sections */}
