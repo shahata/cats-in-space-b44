@@ -5,39 +5,21 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 
 export default function Explore() {
-  const { data: facilities = [], isLoading } = useQuery({
-    queryKey: ['cms', 'Facilities'],
+  const { data: sections = [], isLoading } = useQuery({
+    queryKey: ['cms', 'ExploreSections'],
     queryFn: async () => {
       const res = await base44.functions.invoke('getWixCMSData', {
-        collectionId: 'Facilities',
+        collectionId: 'ExploreSections',
         sort: [{ fieldName: 'order', order: 'ASC' }],
+        limit: 100,
       });
       return res.data?.items || [];
     },
   });
 
-  const { data: exploreLinks = [] } = useQuery({
-    queryKey: ['cms', 'ExploreLinks'],
-    queryFn: async () => {
-      const res = await base44.functions.invoke('getWixCMSData', {
-        collectionId: 'ExploreLinks',
-        sort: [{ fieldName: 'order', order: 'ASC' }],
-      });
-      return res.data?.items || [];
-    },
-  });
-
-  const { data: cta } = useQuery({
-    queryKey: ['cms', 'SiteCTAs', 'join-the-crew'],
-    queryFn: async () => {
-      const res = await base44.functions.invoke('getWixCMSData', {
-        collectionId: 'SiteCTAs',
-        filter: { key: 'join-the-crew' },
-        limit: 1,
-      });
-      return res.data?.items?.[0] || null;
-    },
-  });
+  const facilities   = sections.filter(s => s.kind === 'facility');
+  const exploreLinks = sections.filter(s => s.kind === 'nav');
+  const cta          = sections.find(s => s.kind === 'cta' && s.key === 'join-the-crew');
   return (
     <div className="min-h-screen bg-background font-body">
       <Header />
@@ -65,12 +47,12 @@ export default function Explore() {
             {facilities.map((f, i) => (
               <motion.div key={f._id || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.1 }}>
                 <div className="bg-card border border-border overflow-hidden h-full flex flex-col">
-                  <img src={f.image} alt={f.name} className="w-full h-48 object-cover" />
+                  <img src={f.image} alt={f.title} className="w-full h-48 object-cover" />
                   <div className="p-6 flex flex-col flex-1">
-                    <span className="text-xs font-mono text-primary/60 tracking-widest mb-2">{f.deck}</span>
-                    <h3 className="font-display text-2xl tracking-wider text-primary uppercase mb-2">{f.name}</h3>
+                    {f.subtitle && <span className="text-xs font-mono text-primary/60 tracking-widest mb-2">{f.subtitle}</span>}
+                    <h3 className="font-display text-2xl tracking-wider text-primary uppercase mb-2">{f.title}</h3>
                     <p className="text-muted-foreground text-sm flex-1 mb-4">{f.description}</p>
-                    <Link to={f.link} className="text-primary text-sm font-mono hover:underline">{f.linkText}</Link>
+                    <Link to={f.linkUrl} className="text-primary text-sm font-mono hover:underline">{f.linkText}</Link>
                   </div>
                 </div>
               </motion.div>
@@ -83,7 +65,7 @@ export default function Explore() {
         <div className="grid md:grid-cols-3 gap-6">
           {exploreLinks.map((item, i) => (
             <motion.div key={item._id || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + i * 0.1 }}>
-              <Link to={item.link} className="block bg-card border border-border overflow-hidden hover:border-primary/40 p-0 group transition-colors h-full flex flex-col">
+              <Link to={item.linkUrl} className="block bg-card border border-border overflow-hidden hover:border-primary/40 p-0 group transition-colors h-full flex flex-col">
                 <img src={item.image} alt={item.title} className="w-full h-40 object-cover" />
                 <div className="p-6 flex flex-col flex-1">
                   <h3 className="font-display text-xl tracking-wider text-foreground group-hover:text-primary uppercase mb-2 transition-colors">{item.title}</h3>
@@ -106,9 +88,9 @@ export default function Explore() {
             )}
             <div className="relative z-10">
               <h2 className="font-display text-3xl tracking-widest text-primary uppercase mb-4">{cta.title}</h2>
-              <p className="text-muted-foreground max-w-lg mx-auto mb-8 text-sm">{cta.body}</p>
-              <Link to={cta.buttonLink} className="inline-block bg-primary text-primary-foreground px-8 py-3 font-display text-lg tracking-widest uppercase hover:bg-primary/80 transition-colors">
-                {cta.buttonText}
+              <p className="text-muted-foreground max-w-lg mx-auto mb-8 text-sm">{cta.description}</p>
+              <Link to={cta.linkUrl} className="inline-block bg-primary text-primary-foreground px-8 py-3 font-display text-lg tracking-widest uppercase hover:bg-primary/80 transition-colors">
+                {cta.linkText}
               </Link>
             </div>
           </motion.div>
