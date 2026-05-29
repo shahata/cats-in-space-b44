@@ -108,10 +108,27 @@ Deno.serve(async (req) => {
         const fileUrl = json?.file?.url;
         const fileId = json?.file?.id;
         if (!fileUrl) throw new Error('No file url in response: ' + text.slice(0, 200));
-        // CMS IMAGE field expects: wix:image://v1/{fileId}/{displayName}
-        const wixImageUri = `wix:image://v1/${fileId}/${encodeURIComponent(json.file.displayName || displayName)}`;
+        const name = json.file.displayName || displayName;
+
+        // Poll until Wix finishes processing and width/height are populated
+        let w, h;
+        for (let attempt = 0; attempt < 15; attempt++) {
+          await new Promise(r => setTimeout(r, 1000));
+          const getRes = await fetch(`https://www.wixapis.com/site-media/v1/files/${encodeURIComponent(fileId)}`, {
+            headers: { 'Authorization': accessToken, 'wix-site-id': Deno.env.get('WIX_SITE_ID') || '' },
+          });
+          if (!getRes.ok) continue;
+          const fjson = await getRes.json();
+          w = fjson?.file?.media?.image?.image?.width;
+          h = fjson?.file?.media?.image?.image?.height;
+          if (w && h) break;
+        }
+
+        // CMS IMAGE field expects: wix:image://v1/{fileId}/{displayName}#originWidth=W&originHeight=H
+        const frag = (w && h) ? `#originWidth=${w}&originHeight=${h}` : '';
+        const wixImageUri = `wix:image://v1/${fileId}/${encodeURIComponent(name)}${frag}`;
         urlToWixImage[url] = wixImageUri;
-        result.uploads.push({ source: displayName, fileId, wixImageUri });
+        result.uploads.push({ source: displayName, fileId, wixImageUri, width: w, height: h });
       } catch (e) {
         result.errors.push({ stage: 'upload', url, error: e.message });
       }
