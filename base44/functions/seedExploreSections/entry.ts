@@ -121,15 +121,28 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'All image uploads failed', detail: result }, { status: 500 });
     }
 
-    // 2) Drop existing collection (schema change: image TEXT -> IMAGE)
+    // 2a) Wipe all existing records (deleteDataCollection alone is not reliable)
     try {
-      await wix.collections.deleteDataCollection(COLLECTION_ID);
+      const existing = await wix.items.query(COLLECTION_ID).limit(100).find();
+      for (const it of existing.items) {
+        try { await wix.items.remove(COLLECTION_ID, it._id); }
+        catch (e) { result.errors.push({ stage: 'wipe', _id: it._id, error: e.message }); }
+      }
+      result.wiped = existing.items.length;
     } catch (e) {
-      // ok if it didn't exist
-      console.log('[seed] deleteDataCollection note:', e.message);
+      result.errors.push({ stage: 'wipe-list', error: e.message });
     }
 
-    // 3) Recreate with IMAGE-type image field
+    // 2b) Drop existing collection (schema migration: image TEXT -> IMAGE)
+    try {
+      await wix.collections.deleteDataCollection(COLLECTION_ID);
+      result.collectionDropped = true;
+    } catch (e) {
+      result.collectionDropped = false;
+      result.errors.push({ stage: 'drop-collection', error: e.message });
+    }
+
+    // 3) Recreate with IMAGE-type image field (skip if collection still exists)
     try {
       await wix.collections.createDataCollection({
         _id: COLLECTION_ID,
@@ -149,7 +162,10 @@ Deno.serve(async (req) => {
       });
       result.collection = 'created';
     } catch (e) {
-      return Response.json({ error: `createDataCollection failed: ${e.message}` }, { status: 500 });
+      // If recreate fails because the collection still exists, that's fine —
+      // we already wiped its records and will just re-insert.
+      result.collection = 'reused';
+      result.errors.push({ stage: 'create-collection', error: e.message });
     }
 
     // 4) Insert items with Wix media references
