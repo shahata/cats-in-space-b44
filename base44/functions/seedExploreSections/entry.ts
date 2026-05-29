@@ -38,6 +38,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
+    let body = {};
+    try { body = await req.json(); } catch {}
+    const action = body?.action || 'seed'; // 'seed' | 'dedupe'
+
     const clientId = Deno.env.get('WIX_CLIENT_ID');
     const clientSecret = Deno.env.get('WIX_CLIENT_SECRET');
     const instanceId = Deno.env.get('WIX_INSTANCE_ID');
@@ -49,6 +53,25 @@ Deno.serve(async (req) => {
       modules: { items, collections, files },
       auth: AppStrategy({ appId: clientId, appSecret: clientSecret, instanceId }),
     });
+
+    // Dedupe mode: keep one record per `key`, delete the rest.
+    if (action === 'dedupe') {
+      const out = { kept: [], deleted: [], errors: [] };
+      const listed = await wix.items.query(COLLECTION_ID).limit(100).find();
+      const byKey = {};
+      for (const it of listed.items) {
+        if (!byKey[it.key]) { byKey[it.key] = it; out.kept.push({ key: it.key, _id: it._id }); }
+        else {
+          try {
+            await wix.items.remove(COLLECTION_ID, it._id);
+            out.deleted.push({ key: it.key, _id: it._id });
+          } catch (e) {
+            out.errors.push({ key: it.key, _id: it._id, error: e.message });
+          }
+        }
+      }
+      return Response.json(out);
+    }
 
     const result = { uploads: [], collection: 'unchanged', inserted: [], errors: [] };
 
