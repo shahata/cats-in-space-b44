@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/toaster"
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { refreshWixSession, clearWixSession, getWixTokens, getStoredKind } from '@/lib/wixClient';
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -34,30 +34,29 @@ import Shop from './pages/Shop';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const [wixSessionReady, setWixSessionReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    base44.auth.isAuthenticated().then(async authed => {
+    (async () => {
+      const authed = await base44.auth.isAuthenticated();
       if (cancelled) return;
       const storedKind = getStoredKind();
       const hasTokens = !!getWixTokens()?.accessToken?.value;
       if (authed) {
         await base44.functions.invoke('syncWixMember', {}).catch(() => {});
-        // Mint member tokens only if we don't already have a member session
         if (storedKind !== 'member') await refreshWixSession();
       } else {
-        // If we previously had a member session, drop it now that we're a visitor
         if (storedKind === 'member') clearWixSession();
-        // Mint visitor tokens only if we don't already have any — keeps the
-        // same visitor (and therefore the same cart) across page refreshes.
         if (!hasTokens || storedKind === 'member') await refreshWixSession();
       }
-    });
+      if (!cancelled) setWixSessionReady(true);
+    })();
     return () => { cancelled = true; };
   }, []);
 
-  // Show loading spinner while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  // Show loading spinner while checking app public settings, auth, or wix session
+  if (isLoadingPublicSettings || isLoadingAuth || !wixSessionReady) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
