@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
 
     // OAuth client must have visitor tokens minted first — the SDK builds the
     // Authorization header as `${accessToken},${apiKey}`, so an empty access
-    // token causes Wix to reject with `unauthorized_client`.
+    // token causes Wix to reject with `unauthorized_client`. 1
     const wix = createClient({ auth: OAuthStrategy({ clientId }) });
     const visitorTokens = await wix.auth.generateVisitorTokens();
     wix.auth.setTokens(visitorTokens);
