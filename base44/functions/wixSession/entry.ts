@@ -53,8 +53,8 @@ Deno.serve(async (req) => {
     }
 
     // SDK builds Authorization as `${accessToken},${apiKey}` — mint visitor
-    // tokens first so accessToken isn't empty (otherwise Wix returns
-    // `unauthorized_client`).
+    // tokens first so accessToken isn't empty otherwise Wix returns
+    // `unauthorized_client`.
     const visitorTokens = await wix.auth.generateVisitorTokens().catch(e => {
       console.error('[wixSession] visitor tokens for mint:', e.message);
       return null;
