@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     });
     if (visitorTokens) wix.auth.setTokens(visitorTokens);
 
-    const memberTokens = await wix.auth.getMemberTokensForExternalLogin(
+    const memberTokens = await wix.auth.getMemberTokensForExternalLoginWithSession(
       member._id,
       apiKey
     ).catch(e => {
