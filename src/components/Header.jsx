@@ -84,8 +84,7 @@ export default function Header() {
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-background/80 backdrop-blur-xl border-b border-border/50' : 'bg-transparent'}`}>
       <div className="flex items-center justify-between px-[6vw] md:px-[8vw] h-16 md:h-20">
-        <Link to="/" className="flex items-center gap-3 font-display text-2xl md:text-3xl tracking-widest text-primary hover:text-primary/80 transition-colors uppercase">
-          <img src="https://media.base44.com/images/public/6a115eeb3c3d127dbcd0a2fe/e8d663790_logo.png" alt="Cats in Space logo" className="h-9 md:h-11 w-auto" />
+        <Link to="/" className="font-display text-2xl md:text-3xl tracking-widest text-primary hover:text-primary/80 transition-colors uppercase">
           Cats in Space
         </Link>
 
